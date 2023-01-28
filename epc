@@ -3,30 +3,32 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.1
+# Version 0.2
 # 27 Julio 2009
-# Start time 02:55
-# Finish time 18:32
+# Start time 18:32
+# Stop at 22:55
 # First version
 # Changelog:
-# Hecho el exportar un prompt (costo que funcionara la porqueria)
-# (No andaba porque donde dice local savefile=~/.prompts antes decia
-# local savefile="~./prompts" !!! No andaba por unas estupidas comillas de mas!
-# Hecho a medias el "crear un prompt", muy estupidamente echo el uso de colores
+# Terminada la parte principal de crear un prompt, mejorado el uso de colores
+# totalmente reescrito. Ayuda echa mas clara. Resta agregarle mas
+# funcionalidades en el apartado "Chucherias"
+# Empezadas pobremente la parte de listar y cambiar un prompt
 # =============================================================================
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.1"
-local help="Proximamente"
+local scrname="epc" scrver="0.2"
 local savefile=~/.prompts
 local aux="" P="" space=""
 local i=0
+local base="\[\e["
+local pname=""
+local pnum=0
 
 case $1 in
   -h | --help) # Imprime la ayuda y sale
-    echo $help
+    echo ""
     return 0 # return sale de la funcion y devuelve un exitcode al parent
     ;;
   -v | --version) # Imprime la version y sale
@@ -38,24 +40,55 @@ case $1 in
       echo "No existe una lista de prompts"
       echo "La lista se crea automaticamente al guardar un prompt (opcion -s)"
       return 2
+    else
+      awk 'BEGIN {FS=":"} {print "Lista de prompts almacenados actualmente\n"} \
+      {print "\t\tNumero\t\t\t\tNombre\n"}\
+      {print "\t\t======\t\t\t\t======\n"}\
+      {print "\t\t"$2"\t\t\t\t"$3"\n"}' $savefile
     fi
     ;;
   -c | --change) # Cambia el prompt actual por uno de la lista
+    if (( $# == 1)); then
+      echo "Especifique un numero o un nombre de prompt a cambiar por favor"
+      return 1
+    else
+      let i=2
+      while (( i <= $# )) ; do
+        pname="$pname ""$'$i'"
+        shift
+      done
+      if (( $(grep $pname | awk 'BEGIN {FS=":"} {print $3}' $savefile) | wc -l)) > 1 ; then
+         echo "Se han encontrado varios resultados para el nombre ingresado"
+         grep $pname | awk 'BEGIN {FS=":"} {print $3}' $savefile
+         echo "Por favor ingrese el numero del prompt elegido"
+         read i
+         export PS1="$(grep $i $savefile)"
+      fi
+      echo "Prompt cambiado exitosamente!"
+      return 0
+    fi
     ;;
   -m | --make) # Crea un nuevo prompt
     if (( $# == 1 )); then
       echo -e "\033[1;31mUso incorrecto. Faltan argumentos\033[0m\n"
-      echo "Uso de epc con la opcion -m:"
-      echo "epc -m [caracter_de_espacio] constructores del prompt"
-      echo "La opcion entre [] puede obviarse, de asi hacerlo no se podra"
-      echo "construir un prompt con espacios. Para hacer un espacio ingrese"
-      echo "algun caracter o palabra en la opcion entre []. Luego utilicelo"
-      echo -e "como si fuera el espacio habitual.\n"
-      echo "Ejemplo: epc -m _ green user @ host _ [ _ wdir _ ] _ sign _ normal"
-      echo -e "Resultado:\033[32musuarionormal@localhost [ ~ ] $ \033[0m\n"
+      echo "Uso de $scrname con la opcion -m:"
+      echo "$scrname -m [CARACTER DE ESPACIO] CONSTRUCTORES"
+      echo "La opcion entre [] sirve para espicificar un caracter que al ser ingresado"
+      echo "sera reemplazado por un espacio en el prompt resultante."
+      echo "Esto es asi, ya que el constructor del prompt no reconoce los espacios,"
+      echo "por lo tanto hay que utilizar otro caracter a su eleccion."
+      echo "Recuerde que el 1er parametro luego de -m se tomara como el CARACTER DE"
+      echo "ESPACIO, a menos que este sea el unico parametro luego de -m. En ese caso"
+      echo -e "sera usado como el prompt. A continuacion algunos ejemplos:\n"
+      echo "Usando '_' como caracter de espacio"
+      echo "$scrname -m _ lbgreen user @ host _ [ _ white wdir lbgreen _ ] _ sign _ normal"
+      echo -e "Resultado:\033[1;32musuarionormal@localhost [\033[1;37m /usr/bin\033[1;32m ] $ \033[0m\n"
+      echo "Especificando solo un parametro a $scrname -m"
+      echo "$scrname -m #"
+      echo -e "Resultado:#\n"
       echo "Para una lista detallada de los constructores y de otros modos de"
-      echo "usar epc pruebe epc -h ó epc --help."
-      echo "Para obtener informacion aún más detallada: info epc ó man epc"
+      echo "usar $scrname pruebe $scrname -h ó $scrname --help."
+      echo "Para obtener informacion aún más detallada: info $scrname ó man $scrname"
       return 1
     elif
       (( $# == 2 )); then # Si solo se da un argumeto luego de la opcion -m
@@ -69,177 +102,54 @@ case $1 in
       while [[ $(echo $1 | awk '{print NR}') -eq i ]] ; do # Repetir hasta que no haya argumentos
         aux=$(echo $1 | awk '{print $'$i'}') # Esto separa una palabra con espacios a ambos lados
         case $aux in                         # Y se la asigna a aux
-          normal | blacknormal) P="$P\[\e[0m\]" ;;
-          normalnormal) P="$P""normal" ;; blacknormalblacknormal) P="$P""blacknormal" ;;
-          white | blackwhite)  P="$P\[\e[1m\]" ;;
-          whitewhite) P="$P""white" ;;  blackwhiteblackwhite) P="$P""blackwhite" ;;
-          gray | blackgray) P="$P\[\e[1;30m\]" ;;
-          graygray) P="$P""gray" ;; blackgrayblackgray) P="$P""blackgray" ;;
-          red | blackred) P="$P\[\e[31m\]" ;;
-          redred) P="$P""red" ;; blackredblackred) P="$P""blackred" ;;
-          blred | blackblred) P="$P\[\e[1;31m\]" ;;
-          blredblred) P="$P""blredblred" ;; blackblredblackblred) P="$P""blackblred" ;;
-          green | blackgreen) P="$P\[\e[32m\]" ;;
-          greengreen) P="$P""green" ;; blackgreenblackgreen) P="$P""blackgreen" ;;
-          blgreen | blackblgreen) P="$P\[\e[1;32m\]" ;;
-          blgreenblgreen) P="$P""blgreen" ;; blackblgreenblackblgreen) P="$P""blackblgreen" ;;
-          brown | blackbrown) P="$P\[\e[33m\]" ;;
-          brownbrown) P="$P""brown" ;; blackbrownblackbrown) P="$P""blackbrown" ;;
-          yellow | blackyellow) P="$P\[\e[1;33m\]" ;;
-          yellowyellow) P="$P""yellow" ;; blackyellowblackyellow) P="$P""blackyellow" ;;
-          blue | blackblue) P="$P\[\e[34m\]" ;;
-          blueblue) P="$P""blue" ;; blackblueblackblue) P="$P""blackblue" ;;
-          blblue | blackblblue) P="$P\[\e[1;34m\]" ;;
-          blblueblblue) P="$P""blblue" ;; blackblblueblackblblue) P="$P""blackblblue" ;;
-          purple | blackpurple) P="$P\[\e[35m\]" ;;
-          purplepurple) P="$P""purple" ;; blackpurpleblackpurple) P="$P""blackpurple" ;;
-          blpurple | blackblpurple) P="$P\[\e[1;35m\]" ;;
-          blpurpleblpurple) P="$P""blpurple" ;; blackblpurpleblackblpurple) P="$P""blackblpurple";;
-          cyan | blackcyan) P="$P\[\e[36m\]" ;;
-          cyancyan) P="$P""cyan" ;; blackcyanblackcyan) P="$P""blackcyan" ;;
-          blcyan | blackblcyan) P="$P\[\e[1;36m\]" ;;
-          blcyanblcyan) P="$P""blcyan" ;; blackblcyanblackblcyan) P="$P""blackblcyan";;
-          lgray | blacklgray) P="$P\[\e[37m\]" ;;
-          lgraylgray) P="$P""lgray" ;; blacklgrayblacklgray) P="$P""blacklgray" ;;
-          awhite | blackawhite) P="$P\[\e[1;37m\]" ;;
-          awhiteawhite) P="$P""awhite" ;; blackawhiteblackawhite) P="$P""blackawhite" ;;
-          rednormal) P="$P\[\e[41m\]\[\e[0m\]" ;; rednormalrednormal) P="$P""rednormal" ;;
-          redwhite)  P="$P\[\e[41m\]\[\e[1m\]" ;; redwhiteredwhite) P="$P""redwhite" ;;
-          redblack) P="$P\[\e[41m\]\[\e[30m\]" ;; redblackredblack) P="$P""redblack" ;;
-          redgray) P="$P\[\e[41m\]\[\e[1;30m\]" ;; redgrayredgray) P="$P""redgray" ;;
-          redblred) P="$P\[\e[41m\]\[\e[1;31m\]" ;; redblredredblred) P="$P""redblred" ;;
-          redgreen) P="$P\[\e[41m\]\[\e[32m\]" ;; redgreenredgreen) P="$P""redgreen" ;;
-          redblgreen) P="$P\[\e[41m\]\[\e[1;32m\]" ;; redblgreenredblgreen) P="$P""redblgreen" ;;
-          redbrown) P="$P\[\e[41m\]\[\e[33m\]" ;; redbrownredbrown) P="$P""redbrown" ;;
-          redyellow) P="$P\[\e[41m\]\[\e[1;33m\]" ;; redyellowredyellow) P="$P""redyellow" ;;
-          redblue) P="$P\[\e[41m\]\[\e[34m\]" ;; redblueredblue) P="$P""redblue" ;;
-          redblblue) P="$P\[\e[41m\]\[\e[1;34m\]" ;; redblblueredblblue) P="$P""redblblue" ;;
-          redpurple) P="$P\[\e[41m\]\[\e[35m\]" ;; redpurpleredpurple) P="$P""redpurple" ;;
-          redblpurple) P="$P\[\e[41m\]\[\e[1;35m\]" ;; redblpurpleredblpurple) P="$P""redblpurple";;
-          redcyan) P="$P\[\e[41m\]\[\e[36m\]" ;; redcyanredcyan) P="$P""redcyan" ;;
-          redblcyan) P="$P\[\e[41m\]\[\e[1;36m\]" ;; redblcyanredblcyan) P="$P""redblcyan";;
-          redlgray) P="$P\[\e[41m\]\[\e[37m\]" ;; redlgrayredlgray) P="$P""redlgray" ;;
-          redawhite) P="$P\[\e[41m\]\[\e[1;37m\]" ;;redawhiteredawhite) P="$P""redawhite" ;;
-          greennormal) P="$P\[\e[42m\]\[\e[0m\]" ;; greennormalgreennormal) P="$P""greennormal" ;;
-          greenwhite)  P="$P\[\e[42m\]\[\e[1m\]" ;; greenwhitegreenwhite) P="$P""greenwhite" ;;
-          greenblack) P="$P\[\e[42m\]\[\e[30m\]" ;; greenblackgreenblack) P="$P""greenblack" ;;
-          greengray) P="$P\[\e[42m\]\[\e[1;30m\]" ;; greengraygreengray) P="$P""greengray" ;;
-          greenred) P="$P\[\e[42m\]\[\e[31m\]" ;; greenredgreenred) P="$P""greenred" ;;
-          greenblred) P="$P\[\e[42m\]\[\e[1;31m\]" ;; greenblredgreenblred) P="$P""greenblred" ;;
-       greenblgreen) P="$P\[\e[42m\]\[\e[1;32m\]";; greenblgreengreenblgreen) P="$P""greenblgreen";;
-          greenbrown) P="$P\[\e[42m\]\[\e[33m\]" ;; greenbrowngreenbrown) P="$P""greenbrown" ;;
-        greenyellow) P="$P\[\e[42m\]\[\e[1;33m\]" ;; greenyellowgreenyellow) P="$P""greenyellow" ;;
-          greenblue) P="$P\[\e[42m\]\[\e[34m\]" ;; greenbluegreenblue) P="$P""greenblue" ;;
-          greenblblue) P="$P\[\e[42m\]\[\e[1;34m\]";; greenblbluegreenblblue) P="$P""greenblblue" ;;
-          greenpurple) P="$P\[\e[42m\]\[\e[35m\]" ;; greenpurplegreenpurple) P="$P""greenpurple" ;;
-   greenblpurple) P="$P\[\e[42m\]\[\e[1;35m\]";; greenblpurplegreenblpurple) P="$P""greenblpurple";;
-          greencyan) P="$P\[\e[42m\]\[\e[36m\]" ;; greencyangreencyan) P="$P""greencyan" ;;
-          greenblcyan) P="$P\[\e[42m\]\[\e[1;36m\]" ;; greenblcyangreenblcyan) P="$P""greenblcyan";;
-          greenlgray) P="$P\[\e[42m\]\[\e[37m\]" ;; greenlgraygreenlgray) P="$P""greenlgray" ;;
-          greenawhite) P="$P\[\e[42m\]\[\e[1;37m\]" ;;greenawhitegreenawhite) P="$P""greenawhite" ;;
-          brownnormal) P="$P\[\e[43m\]\[\e[0m\]" ;; brownnormalbrownnormal) P="$P""brownnormal" ;;
-          brownwhite)  P="$P\[\e[43m\]\[\e[1m\]" ;; brownwhitebrownwhite) P="$P""brownwhite" ;;
-          brownblack) P="$P\[\e[43m\]\[\e[30m\]" ;; brownblackbrownblack) P="$P""brownblack" ;;
-          browngray) P="$P\[\e[43m\]\[\e[1;30m\]" ;; browngraybrowngray) P="$P""browngray" ;;
-          brownred) P="$P\[\e[43m\]\[\e[31m\]" ;; brownredbrownred) P="$P""brownred" ;;
-          brownblred) P="$P\[\e[43m\]\[\e[1;31m\]" ;; brownblredbrownblred) P="$P""brownblred" ;;
-          browngreen) P="$P\[\e[43m\]\[\e[32m\]" ;; browngreenbrowngreen) P="$P""browngreen" ;;
-       brownblgreen) P="$P\[\e[43m\]\[\e[1;32m\]";; brownblgreenbrownblgreen) P="$P""brownblgreen";;
-          brownyellow) P="$P\[\e[43m\]\[\e[1;33m\]";; brownyellowbrownyellow) P="$P""brownyellow" ;;
-          brownblue) P="$P\[\e[43m\]\[\e[34m\]" ;; brownbluebrownblue) P="$P""brownblue" ;;
-         brownblblue) P="$P\[\e[43m\]\[\e[1;34m\]" ;; brownblbluebrownblblue) P="$P""brownblblue" ;;
-          brownpurple) P="$P\[\e[43m\]\[\e[35m\]" ;; brownpurplebrownpurple) P="$P""brownpurple" ;;
-   brownblpurple) P="$P\[\e[43m\]\[\e[1;35m\]";; brownblpurplebrownblpurple) P="$P""brownblpurple";;
-          browncyan) P="$P\[\e[43m\]\[\e[36m\]" ;; browncyanbrowncyan) P="$P""browncyan" ;;
-          brownblcyan) P="$P\[\e[43m\]\[\e[1;36m\]" ;; brownblcyanbrownblcyan) P="$P""brownblcyan";;
-          brownlgray) P="$P\[\e[43m\]\[\e[37m\]" ;; brownlgraybrownlgray) P="$P""brownlgray" ;;
-          brownawhite) P="$P\[\e[43m\]\[\e[1;37m\]" ;;brownawhitebrownawhite) P="$P""brownawhite" ;;
-          bluenormal) P="$P\[\e[44m\]\[\e[0m\]" ;; bluenormalbluenormal) P="$P""bluenormal" ;;
-          bluewhite)  P="$P\[\e[44m\]\[\e[1m\]" ;; bluewhitebluewhite) P="$P""bluewhite" ;;
-          blueblack) P="$P\[\e[44m\]\[\e[30m\]" ;; blueblackblueblack) P="$P""blueblack" ;;
-          bluegray) P="$P\[\e[44m\]\[\e[1;30m\]" ;; bluegraybluegray) P="$P""bluegray" ;;
-          bluered) P="$P\[\e[44m\]\[\e[31m\]" ;; blueredbluered) P="$P""bluered" ;;
-          blueblred) P="$P\[\e[44m\]\[\e[1;31m\]" ;; blueblredblueblred) P="$P""blueblred" ;;
-          bluegreen) P="$P\[\e[44m\]\[\e[32m\]" ;; bluegreenbluegreen) P="$P""bluegreen" ;;
-          blueblgreen) P="$P\[\e[44m\]\[\e[1;32m\]";; blueblgreenblueblgreen) P="$P""blueblgreen";;
-          bluebrown) P="$P\[\e[44m\]\[\e[33m\]";; bluebrownbluebrown) P="$P""bluebrown" ;;
-          blueyellow) P="$P\[\e[44m\]\[\e[1;33m\]";; blueyellowblueyellow) P="$P""blueyellow" ;;
-          blueblblue) P="$P\[\e[44m\]\[\e[1;34m\]" ;; blueblblueblueblblue) P="$P""blueblblue" ;;
-          bluepurple) P="$P\[\e[44m\]\[\e[35m\]" ;; bluepurplebluepurple) P="$P""bluepurple" ;;
-       blueblpurple) P="$P\[\e[44m\]\[\e[1;35m\]";; blueblpurpleblueblpurple) P="$P""blueblpurple";;
-          bluecyan) P="$P\[\e[44m\]\[\e[36m\]" ;; bluecyanbluecyan) P="$P""bluecyan" ;;
-          blueblcyan) P="$P\[\e[44m\]\[\e[1;36m\]" ;; blueblcyanblueblcyan) P="$P""blueblcyan";;
-          bluelgray) P="$P\[\e[44m\]\[\e[37m\]" ;; bluelgraybluelgray) P="$P""bluelgray" ;;
-          blueawhite) P="$P\[\e[44m\]\[\e[1;37m\]" ;;blueawhiteblueawhite) P="$P""blueawhite" ;;
-        purplenormal) P="$P\[\e[45m\]\[\e[0m\]" ;; purplenormalpurplenormal) P="$P""purplenormal" ;;
-          purplewhite)  P="$P\[\e[45m\]\[\e[1m\]" ;; purplewhitepurplewhite) P="$P""purplewhite" ;;
-          purpleblack) P="$P\[\e[45m\]\[\e[30m\]" ;; purpleblackpurpleblack) P="$P""purpleblack" ;;
-          purplegray) P="$P\[\e[45m\]\[\e[1;30m\]" ;; purplegraypurplegray) P="$P""purplegray" ;;
-          purplered) P="$P\[\e[45m\]\[\e[31m\]" ;; purpleredpurplered) P="$P""purplered" ;;
-        purpleblred) P="$P\[\e[45m\]\[\e[1;31m\]" ;; purpleblredpurpleblred) P="$P""purpleblred" ;;
-          purplegreen) P="$P\[\e[45m\]\[\e[32m\]" ;; purplegreenpurplegreen) P="$P""purplegreen" ;;
-   purpleblgreen) P="$P\[\e[45m\]\[\e[1;32m\]";; purpleblgreenpurpleblgreen) P="$P""purpleblgreen";;
-          purplebrown) P="$P\[\e[45m\]\[\e[33m\]";; purplebrownpurplebrown) P="$P""purplebrown" ;;
-      purpleyellow) P="$P\[\e[45m\]\[\e[1;33m\]";; purpleyellowpurpleyellow) P="$P""purpleyellow" ;;
-          purpleblue) P="$P\[\e[45m\]\[\e[34m\]" ;; purplebluepurpleblue) P="$P""purpleblue" ;;
-    purpleblblue) P="$P\[\e[45m\]\[\e[1;34m\]" ;; purpleblbluepurpleblblue) P="$P""purpleblblue" ;;
-purpleblpurple) P="$P\[\e[45m\]\[\e[1;35m\]";;purpleblpurplepurpleblpurple) P="$P""purpleblpurple";;
-          purplecyan) P="$P\[\e[45m\]\[\e[36m\]" ;; purplecyanpurplecyan) P="$P""purplecyan" ;;
-      purpleblcyan) P="$P\[\e[45m\]\[\e[1;36m\]" ;; purpleblcyanpurpleblcyan) P="$P""purpleblcyan";;
-          purplelgray) P="$P\[\e[45m\]\[\e[37m\]" ;; purplelgraypurplelgray) P="$P""purplelgray" ;;
-      purpleawhite) P="$P\[\e[45m\]\[\e[1;37m\]" ;;purpleawhitepurpleawhite) P="$P""purpleawhite" ;;
-       cyannormal) P="$P\[\e[46m\]\[\e[0m\]" ;; cyannormalcyannormal) P="$P""cyannormal" ;;
-          cyanwhite)  P="$P\[\e[46m\]\[\e[1m\]" ;; cyanwhitecyanwhite) P="$P""cyanwhite" ;;
-          cyanblack) P="$P\[\e[46m\]\[\e[30m\]" ;; cyanblackcyanblack) P="$P""cyanblack" ;;
-          cyangray) P="$P\[\e[46m\]\[\e[1;30m\]" ;; cyangraycyangray) P="$P""cyangray" ;;
-          cyanred) P="$P\[\e[46m\]\[\e[31m\]" ;; cyanredcyanred) P="$P""cyanred" ;;
-        cyanblred) P="$P\[\e[46m\]\[\e[1;31m\]" ;; cyanblredcyanblred) P="$P""cyanblred" ;;
-          cyangreen) P="$P\[\e[46m\]\[\e[32m\]" ;; cyangreencyangreen) P="$P""cyangreen" ;;
-   cyanblgreen) P="$P\[\e[46m\]\[\e[1;32m\]";; cyanblgreencyanblgreen) P="$P""cyanblgreen";;
-          cyanbrown) P="$P\[\e[46m\]\[\e[33m\]";; cyanbrowncyanbrown) P="$P""cyanbrown" ;;
-      cyanyellow) P="$P\[\e[46m\]\[\e[1;33m\]";; cyanyellowcyanyellow) P="$P""cyanyellow" ;;
-          cyanblue) P="$P\[\e[46m\]\[\e[34m\]" ;; cyanbluecyanblue) P="$P""cyanblue" ;;
-  cyanblblue) P="$P\[\e[46m\]\[\e[1;34m\]" ;; cyanblbluecyanblblue) P="$P""cyanblblue" ;;
-cyanpurple) P="$P\[\e[46m\]\[\e[35m\]";;cyanpurplecyanpurple) P="$P""cyanpurple";;
-cyanblpurple) P="$P\[\e[46m\]\[\e[1;35m\]";;cyanblpurplecyanblpurple) P="$P""cyanblpurple";;
-      cyanblcyan) P="$P\[\e[46m\]\[\e[1;36m\]" ;; cyanblcyancyanblcyan) P="$P""cyanblcyan";;
-          cyanlgray) P="$P\[\e[46m\]\[\e[37m\]" ;; cyanlgraycyanlgray) P="$P""cyanlgray" ;;
-      cyanawhite) P="$P\[\e[46m\]\[\e[1;37m\]" ;;cyanawhitecyanawhite) P="$P""cyanawhite" ;;
-       lgraynormal) P="$P\[\e[47m\]\[\e[0m\]" ;; lgraynormallgraynormal) P="$P""lgraynormal" ;;
-          lgraywhite)  P="$P\[\e[47m\]\[\e[1m\]" ;; lgraywhitelgraywhite) P="$P""lgraywhite" ;;
-          lgrayblack) P="$P\[\e[47m\]\[\e[30m\]" ;; lgrayblacklgrayblack) P="$P""lgrayblack" ;;
-          lgraygray) P="$P\[\e[47m\]\[\e[1;30m\]" ;; lgraygraylgraygray) P="$P""lgraygray" ;;
-          lgrayred) P="$P\[\e[47m\]\[\e[31m\]" ;; lgrayredlgrayred) P="$P""lgrayred" ;;
-        lgrayblred) P="$P\[\e[47m\]\[\e[1;31m\]" ;; lgrayblredlgrayblred) P="$P""lgrayblred" ;;
-          lgraygreen) P="$P\[\e[47m\]\[\e[32m\]" ;; lgraygreenlgraygreen) P="$P""lgraygreen" ;;
-   lgrayblgreen) P="$P\[\e[47m\]\[\e[1;32m\]";; lgrayblgreenlgrayblgreen) P="$P""lgrayblgreen";;
-          lgraybrown) P="$P\[\e[47m\]\[\e[33m\]";; lgraybrownlgraybrown) P="$P""lgraybrown" ;;
-      lgrayyellow) P="$P\[\e[47m\]\[\e[1;33m\]";; lgrayyellowlgrayyellow) P="$P""lgrayyellow" ;;
-          lgrayblue) P="$P\[\e[47m\]\[\e[34m\]" ;; lgraybluelgrayblue) P="$P""lgrayblue" ;;
-  lgrayblblue) P="$P\[\e[47m\]\[\e[1;34m\]" ;; lgrayblbluelgrayblblue) P="$P""lgrayblblue" ;;
-lgraypurple) P="$P\[\e[47m\]\[\e[35m\]";;lgraypurplelgraypurple) P="$P""lgraypurple";;
-lgrayblpurple) P="$P\[\e[47m\]\[\e[1;35m\]";;lgrayblpurplelgrayblpurple) P="$P""lgrayblpurple";;
-      lgraycyan) P="$P\[\e[47m\]\[\e[36m\]" ;; lgraycyanlgraycyan) P="$P""lgraycyan";;
-      lgrayblcyan) P="$P\[\e[47m\]\[\e[1;36m\]" ;; lgrayblcyanlgrayblcyan) P="$P""lgrayblcyan";;
-      lgrayawhite) P="$P\[\e[47m\]\[\e[1;37m\]" ;;lgrayawhitelgrayawhite) P="$P""lgrayawhite" ;;
-          $space) P="$P " ;;
-          bell) P="$P\a" ;;
-          host) P="$P\h" ;;
+          # Colores!!!
+
+          # Foreground                                        Background
+          normal)     P="$P""$base""0m\]" ;;       bnormal)    P="$P""$base""40m\]" ;;
+          white)      P="$P""$base""1;37m\]" ;;
+          black)      P="$P""$base""30m\]" ;;
+          darkgray)   P="$P""$base""1;30m\]" ;;
+          red)        P="$P""$base""31m\]" ;;      bred)       P="$P""$base""41m\]" ;;
+          lbred)      P="$P""$base""1;31m\]" ;;
+          green)      P="$P""$base""32m\]" ;;      bgreen)     P="$P""$base""42m\]" ;;
+          lbgreen)    P="$P""$base""1;32m\]" ;;
+          brown)      P="$P""$base""33m\]" ;;      bbrown)     P="$P""$base""43m\]" ;;
+          yellow)     P="$P""$base""1;33m\]" ;;
+          blue)       P="$P""$base""34m\]" ;;      bblue)      P="$P""$base""44m\]" ;;
+          lbblue)     P="$P""$base""1;34m\]" ;;
+          purple)     P="$P""$base""35m\]" ;;      bpurple)    P="$P""$base""45m\]" ;;
+          lbpurple)   P="$P""$base""1;35m\]" ;;
+          cyan)       P="$P""$base""36m\]" ;;      bcyan)      P="$P""$base""46m\]" ;;
+          lbcyan)     P="$P""$base""1;36m\]" ;;
+          lightgray)  P="$P""$base""37m\]" ;;      blightgray) P="$P""$base""47m\]" ;;
+
+          # Efectos de texto !!! :-o
+
+          underscore) P="$P""$base""4m\]" ;;       blink)     P="$P""$base""5m\]" ;;
+          inverse)    P="$P""$base""7m\]" ;;       invisible) P="$P""$base""8m\]" ;;
+
+          # Chucherias!!!
+
+          $space)   P="$P " ;;
+          bell)     P="$P\a" ;;
+          host)     P="$P\h" ;;
           hostfull) P="$P\H" ;;
-          jobs) P="$P\j" ;;
+          jobs)     P="$P\j" ;;
           terminal) P="$P\l" ;;
-          newline) P="$P\n" ;;
-          carriagereturn) P="$P\r" ;;
-          shell) P="$P\s" ;;
-          user) P="$P\u" ;;
-          version) P="$P\v" ;;
-          realese) P="$P\V" ;;
-          wdir) P="$P\w" ;;
-          Wdir) P="$P\W" ;;
-          hisnum) P="$P\!" ;;
-          cmdnum) P="$P\#" ;;
-          sign) P="$P\$" ;;
-          *) P="$P""$aux" ;;
+          newline)  P="$P\n" ;;
+          creturn)  P="$P\r" ;;
+          shell)    P="$P\s" ;;
+          user)     P="$P\u" ;;
+          version)  P="$P\v" ;;
+          realese)  P="$P\V" ;;
+          wdir)     P="$P\w" ;;
+          Wdir)     P="$P\W" ;;
+          hisnum)   P="$P\!" ;;
+          cmdnum)   P="$P\#" ;;
+          exitcode) P="$P\$?" ;;
+          sign)     P="$P\$" ;;
+          date)     P="$P\$(date +" ;; # Queda abierto para que el usuario lo complete con
+          *)        P="$P""$aux" ;;    # su formato preferido seguido por ")"
         esac
         let i=$i+1
       done
@@ -252,9 +162,13 @@ lgrayblpurple) P="$P\[\e[47m\]\[\e[1;35m\]";;lgrayblpurplelgrayblpurple) P="$P""
       echo "Debe especificar un nombre para guardar el prompt actual"
       return 1
     fi
+    let i=2
+    while (( i <= $# )) ; do
+      pname="$pname ""$'$i'"
+      shift
+    done
     [[ -f $savefile ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null $savefile
-    local pnum=$(($(grep '^:' $savefile | wc -l)+1))
-    local pname=$2
+    pnum=$(($(grep '^:' $savefile | wc -l)+1))
     echo ":$pnum:$pname:$PS1" >> $savefile
     echo "El prompt actual se ha guardado satisfactoriamente en $savefile"
     return 0
@@ -264,7 +178,11 @@ lgrayblpurple) P="$P\[\e[47m\]\[\e[1;35m\]";;lgrayblpurplelgrayblpurple) P="$P""
   -d | --delete) # Borra un prompt de la lista
     ;;
   *) # else, case else
-    echo $help
+    echo "Opcion o argumento invalido"
+    echo "Para ver brevemente las opciones de este comando usar: "
+    echo "$scrname -h ó $scrname --help."
+    echo "Para mas ayuda refierase al manual, man $scrname ó info $scrname"
+    return 1
     ;;
 esac
 
