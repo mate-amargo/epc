@@ -3,26 +3,25 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.3
+# Version 0.4
 # 28 Julio 2009
-# Start time 18:40
-# Stop time 20:00
+# Start time 22:52
+# Stop time 29 Julio 2009 02:30
 # Changelog:
-# Modificado el comando de guardar un prompt, se añadio una vista previa
-# Actualizada esta vista en el listado de los prompts
-# Cambiar un promt: Se cambio el codigo pero todavia no funciona bien, colgado!
+# Se arreglo el codigo de cambiar un promt
+# Se cambio la forma en que se guardan los prompts
+# No se permiten promts con nombres iguales
 # =============================================================================
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.3"
+local scrname="epc" scrver="0.4"
 local savefile=~/.prompts
 local aux="" P="" space=""
 local i=0
 local base="\[\e["
 local pname=""
-local pnum=0
 
 case $1 in
   -h | --help) # Imprime la ayuda y sale
@@ -42,7 +41,8 @@ case $1 in
       awk -F ":" 'BEGIN {print "Lista de prompts almacenados actualmente\n\n \
       \tNumero\t\tNombre\t\tVista Previa\n \
       \t======\t\t======\t\t============\n"}\
-      {print "\t"$2"\t\t"$3"\t\t"$5"\n"}' $savefile
+      { num = num + 1 }\
+      {print "\t"num"\t\t"$2"\t\t"$4"\n"}' $savefile
     fi
     ;;
   -c | --change) # Cambia el prompt actual por uno de la lista
@@ -50,24 +50,18 @@ case $1 in
       echo "Especifique un numero o un nombre de prompt a cambiar por favor"
       return 1
     else
-      shift
+      pname="$2" ; shift 2
       while (( $# != 0 )) ; do
         pname="$pname ""$1"
         shift
       done
-      if (( $( awk 'BEGIN {FS=":"} {print $3}' $savefile | grep $pname | wc -l) > 1 )) ; then
-         echo -e "Se han encontrado los siguientes resultados para $pname\n"
-         awk 'BEGIN {FS=":"} {print $1": "$3}' $savefile | grep $name
-         echo "Por favor ingrese el numero del prompt elegido"
-         read i
-         export PS1="$(grep $i $savefile)"
-      else
-        if (($pname)); then # Si es un numero (($pname)) es 0 else 1
-          export PS1="$(awk -F : '{print $2}' $savefile | grep $pname | awk -F : '{print $}' )"
-                 # awk -F : = awk -F: = awk -F ":" = awk 'BEGIN {FS=":"}'
+      if (($pname)); then # Si es un numero (($pname)) es 0 else 1
+         export PS1="$(awk -F: '{num = num+1}{print num,$3 }' \
+         $savefile | grep -m 1 ^$pname | cut -d " " -f 2-)"
+                     # grep -m 1 se detiene desp de 1 encuentro
+                     # awk -F : = awk -F: = awk -F ":" = awk 'BEGIN {FS=":"}'
         else
-          export PS1=""
-        fi
+         export PS1="$(awk -F: '{print $2,$3}' $savefile | grep -x "$pname" | cut -d " " -f 2-)"
       fi
       echo "Prompt cambiado exitosamente!"
       return 0
@@ -110,28 +104,20 @@ case $1 in
           # Colores!!!
 
           # Foreground                                        Background
-          normal)     P="$P""$base""0m\]" ;;       bnormal)    P="$P""$base""40m\]" ;;
-          white)      P="$P""$base""1;37m\]" ;;
-          black)      P="$P""$base""30m\]" ;;
-          darkgray)   P="$P""$base""1;30m\]" ;;
+          white)      P="$P""$base""0m\]" ;;
+          black)      P="$P""$base""30m\]" ;;      bblack)     P="$P""$base""40m\]" ;;
           red)        P="$P""$base""31m\]" ;;      bred)       P="$P""$base""41m\]" ;;
-          lbred)      P="$P""$base""1;31m\]" ;;
           green)      P="$P""$base""32m\]" ;;      bgreen)     P="$P""$base""42m\]" ;;
-          lbgreen)    P="$P""$base""1;32m\]" ;;
           brown)      P="$P""$base""33m\]" ;;      bbrown)     P="$P""$base""43m\]" ;;
-          yellow)     P="$P""$base""1;33m\]" ;;
           blue)       P="$P""$base""34m\]" ;;      bblue)      P="$P""$base""44m\]" ;;
-          lbblue)     P="$P""$base""1;34m\]" ;;
           purple)     P="$P""$base""35m\]" ;;      bpurple)    P="$P""$base""45m\]" ;;
-          lbpurple)   P="$P""$base""1;35m\]" ;;
           cyan)       P="$P""$base""36m\]" ;;      bcyan)      P="$P""$base""46m\]" ;;
-          lbcyan)     P="$P""$base""1;36m\]" ;;
           lightgray)  P="$P""$base""37m\]" ;;      blightgray) P="$P""$base""47m\]" ;;
 
           # Efectos de texto !!! :-o
-
-          underscore) P="$P""$base""4m\]" ;;       blink)     P="$P""$base""5m\]" ;;
-          inverse)    P="$P""$base""7m\]" ;;       invisible) P="$P""$base""8m\]" ;;
+          normal)     P="$P""$base""0m\]" ;;       bold)       P="$P""$base""1m\]" ;;
+          underscore) P="$P""$base""4m\]" ;;       blink)      P="$P""$base""5m\]" ;;
+          inverse)    P="$P""$base""7m\]" ;;       invisible)  P="$P""$base""8m\]" ;;
 
           # Chucherias!!!
 
@@ -152,11 +138,11 @@ case $1 in
           hisnum)   P="$P\!" ;;
           cmdnum)   P="$P\#" ;;
           exitcode) P="$P\$?" ;;
-          sign)     P="$P\$" ;;
-          date)     P="$P\$(date +" ;; # Queda abierto para que el usuario lo complete con
+          sign)     P="$P\$ " ;;
+          date)     P="$P\$(date +%D)" ;;
           "(")      P="$P""(" ;;
           ")")      P="$P"")" ;;
-          *)        P="$P""$aux" ;;    # su formato preferido seguido por ")"
+          *)        P="$P""$aux" ;;
         esac
         let i=$i+1
       done
@@ -169,15 +155,20 @@ case $1 in
       echo "Debe especificar un nombre para guardar el prompt actual"
       return 1
     fi
-    pname=$2
-    shift 2
+    pname=$2 ; shift 2
     while (( $# != 0 )) ; do
       pname="$pname ""$1"
       shift
     done
+    if (( $( awk 'BEGIN {FS=":"} {print $2}' $savefile | grep -x "$pname" | wc -l) > 1 )) ; then
+      echo -e "Ya equiste un prompt con el nombre $pname\n"
+      while [ "$pname" -ne "$old" ]; do
+        echo -n "Por favor ingrese un nombre distinto: "
+        read old
+      done
+    fi
     [[ -f $savefile ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null $savefile
-    pnum=$(($(grep '^:' $savefile | wc -l)+1))
-    echo ":$pnum:$pname:$PS1:$(echo -e $PS1 | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g')" >> $savefile
+    echo ":$pname:$PS1:$(echo -e $PS1 | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g')" >> $savefile
     echo "El prompt actual se ha guardado satisfactoriamente en $savefile"
     return 0
     ;;
@@ -186,8 +177,8 @@ case $1 in
   -d | --delete) # Borra un prompt de la lista
     ;;
   *) # else, case else
-    echo "Opcion o argumento invalido"
-    echo "Para ver brevemente las opciones de este comando usar: "
+    echo -e "\033[1;31mOpcion o argumento invalido\033[0m"
+    echo "Para ver brevemente las opciones de este comando usar:"
     echo "$scrname -h ó $scrname --help."
     echo "Para mas ayuda refierase al manual, man $scrname ó info $scrname"
     return 1
