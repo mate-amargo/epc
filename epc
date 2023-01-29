@@ -3,22 +3,20 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.2
-# 27 Julio 2009
-# Start time 18:32
-# Stop at 22:55
-# First version
+# Version 0.3
+# 28 Julio 2009
+# Start time 18:40
+# Stop time 20:00
 # Changelog:
-# Terminada la parte principal de crear un prompt, mejorado el uso de colores
-# totalmente reescrito. Ayuda echa mas clara. Resta agregarle mas
-# funcionalidades en el apartado "Chucherias"
-# Empezadas pobremente la parte de listar y cambiar un prompt
+# Modificado el comando de guardar un prompt, se añadio una vista previa
+# Actualizada esta vista en el listado de los prompts
+# Cambiar un promt: Se cambio el codigo pero todavia no funciona bien, colgado!
 # =============================================================================
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.2"
+local scrname="epc" scrver="0.3"
 local savefile=~/.prompts
 local aux="" P="" space=""
 local i=0
@@ -41,10 +39,10 @@ case $1 in
       echo "La lista se crea automaticamente al guardar un prompt (opcion -s)"
       return 2
     else
-      awk 'BEGIN {FS=":"} {print "Lista de prompts almacenados actualmente\n"} \
-      {print "\t\tNumero\t\t\t\tNombre\n"}\
-      {print "\t\t======\t\t\t\t======\n"}\
-      {print "\t\t"$2"\t\t\t\t"$3"\n"}' $savefile
+      awk -F ":" 'BEGIN {print "Lista de prompts almacenados actualmente\n\n \
+      \tNumero\t\tNombre\t\tVista Previa\n \
+      \t======\t\t======\t\t============\n"}\
+      {print "\t"$2"\t\t"$3"\t\t"$5"\n"}' $savefile
     fi
     ;;
   -c | --change) # Cambia el prompt actual por uno de la lista
@@ -52,17 +50,24 @@ case $1 in
       echo "Especifique un numero o un nombre de prompt a cambiar por favor"
       return 1
     else
-      let i=2
-      while (( i <= $# )) ; do
-        pname="$pname ""$'$i'"
+      shift
+      while (( $# != 0 )) ; do
+        pname="$pname ""$1"
         shift
       done
-      if (( $(grep $pname | awk 'BEGIN {FS=":"} {print $3}' $savefile) | wc -l)) > 1 ; then
-         echo "Se han encontrado varios resultados para el nombre ingresado"
-         grep $pname | awk 'BEGIN {FS=":"} {print $3}' $savefile
+      if (( $( awk 'BEGIN {FS=":"} {print $3}' $savefile | grep $pname | wc -l) > 1 )) ; then
+         echo -e "Se han encontrado los siguientes resultados para $pname\n"
+         awk 'BEGIN {FS=":"} {print $1": "$3}' $savefile | grep $name
          echo "Por favor ingrese el numero del prompt elegido"
          read i
          export PS1="$(grep $i $savefile)"
+      else
+        if (($pname)); then # Si es un numero (($pname)) es 0 else 1
+          export PS1="$(awk -F : '{print $2}' $savefile | grep $pname | awk -F : '{print $}' )"
+                 # awk -F : = awk -F: = awk -F ":" = awk 'BEGIN {FS=":"}'
+        else
+          export PS1=""
+        fi
       fi
       echo "Prompt cambiado exitosamente!"
       return 0
@@ -149,6 +154,8 @@ case $1 in
           exitcode) P="$P\$?" ;;
           sign)     P="$P\$" ;;
           date)     P="$P\$(date +" ;; # Queda abierto para que el usuario lo complete con
+          "(")      P="$P""(" ;;
+          ")")      P="$P"")" ;;
           *)        P="$P""$aux" ;;    # su formato preferido seguido por ")"
         esac
         let i=$i+1
@@ -162,14 +169,15 @@ case $1 in
       echo "Debe especificar un nombre para guardar el prompt actual"
       return 1
     fi
-    let i=2
-    while (( i <= $# )) ; do
-      pname="$pname ""$'$i'"
+    pname=$2
+    shift 2
+    while (( $# != 0 )) ; do
+      pname="$pname ""$1"
       shift
     done
     [[ -f $savefile ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null $savefile
     pnum=$(($(grep '^:' $savefile | wc -l)+1))
-    echo ":$pnum:$pname:$PS1" >> $savefile
+    echo ":$pnum:$pname:$PS1:$(echo -e $PS1 | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g')" >> $savefile
     echo "El prompt actual se ha guardado satisfactoriamente en $savefile"
     return 0
     ;;
