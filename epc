@@ -3,20 +3,20 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.4
-# 28 Julio 2009
-# Start time 22:52
-# Stop time 29 Julio 2009 02:30
+# Version 0.5
+# 29 Julio 2009
+# Start time 02:31
+# Stop time 05:10
 # Changelog:
 # Se arreglo el codigo de cambiar un promt
-# Se cambio la forma en que se guardan los prompts
-# No se permiten promts con nombres iguales
+# Se impusieron mas restricciones sore guardar un prompt, el nombre no puede
+# empezar con un numero ni un nombre ya guardado (casi, arreglar despues,sueño)
 # =============================================================================
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.4"
+local scrname="epc" scrver="0.5"
 local savefile=~/.prompts
 local aux="" P="" space=""
 local i=0
@@ -55,16 +55,23 @@ case $1 in
         pname="$pname ""$1"
         shift
       done
-      if (($pname)); then # Si es un numero (($pname)) es 0 else 1
-         export PS1="$(awk -F: '{num = num+1}{print num,$3 }' \
-         $savefile | grep -m 1 ^$pname | cut -d " " -f 2-)"
+      if [[ ! $(awk -F : '{num = num +1}{print num,$2}' $savefile | grep -m 1 "$pname") ]]; then
+        echo -e "\033[31mNo se ha encontrado $pname en la lista de prompts\033[0m"
+        return 2
+      else
+        aux=$(echo $pname | cut -d " " -f 1); declare -i aux=$aux; #Si pname era una string, aux=0
+        if (( $aux != 0 )); then
+          export PS1="$(awk -F: '{num = num+1}{print num,$3 }' \
+          $savefile | grep -m 1 ^$pname | cut -d " " -f 2-)"
                      # grep -m 1 se detiene desp de 1 encuentro
                      # awk -F : = awk -F: = awk -F ":" = awk 'BEGIN {FS=":"}'
         else
-         export PS1="$(awk -F: '{print $2,$3}' $savefile | grep -x "$pname" | cut -d " " -f 2-)"
+          export PS1="$(awk -F: '{print $2$3}' \
+          $savefile | grep -m 1 "$pname" | awk -F "$pname" '{print $2}' )"
+        fi
+        echo "Prompt cambiado exitosamente!"
+        return 0
       fi
-      echo "Prompt cambiado exitosamente!"
-      return 0
     fi
     ;;
   -m | --make) # Crea un nuevo prompt
@@ -160,13 +167,16 @@ case $1 in
       pname="$pname ""$1"
       shift
     done
-    if (( $( awk 'BEGIN {FS=":"} {print $2}' $savefile | grep -x "$pname" | wc -l) > 1 )) ; then
-      echo -e "Ya equiste un prompt con el nombre $pname\n"
-      while [ "$pname" -ne "$old" ]; do
-        echo -n "Por favor ingrese un nombre distinto: "
-        read old
-      done
-    fi
+    aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux; aux="$pname"
+    while [ "$pname" == "$aux" ] || ((i != 0)) || \
+    (( $( awk 'BEGIN {FS=":"} {print $2}' $savefile | grep -m 1 "$aux" | wc -l) >= 1 )); do
+     echo
+     echo -e "\033[31mYa equiste un prompt con el nombre $aux\033[0m\n"
+     if ((i != 0)); then echo "No esta permitido que el nombre sea un numero"; fi
+     aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux;
+     echo -n "Por favor ingrese un nombre distinto: "
+     read aux
+    done
     [[ -f $savefile ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null $savefile
     echo ":$pname:$PS1:$(echo -e $PS1 | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g')" >> $savefile
     echo "El prompt actual se ha guardado satisfactoriamente en $savefile"
