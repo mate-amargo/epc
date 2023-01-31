@@ -3,25 +3,12 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 1.0
-# 1 Agosto 2009
-# Start time 00:35
-# Stop time 07:40
-# Resume time 22:25
-# 2 Agosto 2009
-# Stop time 00:20
-# Resume time 02:30
-# Stop time 06:00
-# 3 Agosto 2009
-# Resume time 02:00
-# End time 05:00
+# Version 1.1
+# 28 Septiembre 2009
+# Start time 00:25
 # Changelog:
-# Agregadas chucherias!
-# Terminado el sed gigante de save
-# Terminada la ayuda
-# Arreglado el problema de los exitcode, ahora todos los comandos que generan
-# salidas dentro del prompt se pasan el exitcode anterior de la forma ret=$?
-# return $ret
+# Arreglada la función sign (Ahora esta de acuerdo con lo que dice la ayuda)
+# Corregido bug en truncdir
 # =============================================================================
 
 
@@ -73,8 +60,8 @@ local ret=$?
 
 # Esta funcion trunca el directorio, en caso de que supere las 30 lineas
 
-local maxlength=30
-local dir="$(pwd | awk -F $HOME '{print "~"$NF}')"
+local maxlength=25
+local dir="$(pwd | awk -F $HOME '{if (NF == 1) print $NF; else print "~"$NF}')"
 
 if (( ${#dir} >= maxlength )); then
   local offset=$(((${#dir} - $maxlength)))
@@ -130,11 +117,23 @@ return $ret
 
 }
 
+sign () {
+
+local ret=$?;
+if (( $UID == 0 )); then
+  echo -n '#'
+else
+  echo -n '$'
+fi
+
+return $ret
+}
+
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="1.0"
+local scrname="epc" scrver="1.1"
 local savefile=~/.prompts # No ponerle comillas porque sino no anda
 local rcfile=~/.bashrc    # Idem
 local aux="" P=""
@@ -313,7 +312,7 @@ case $1 in
           creturn)    P="$P\r" ;;   shell)      P="$P\s" ;;  user)       P="$P\u" ;;
           version)    P="$P\v" ;;   release)    P="$P\V" ;;  wdir)       P="$P\w" ;;
           Wdir)       P="$P\W" ;;   hisnum)     P="$P\!" ;;  cmdnum)     P="$P\#" ;;
-          exitcode)   P="$P\$?" ;;  sign)       P="$P\$ " ;;
+          exitcode)   P="$P\$?" ;;  sign)       P="$P\$(sign) " ;;
           files)      P="$P\$(ffiles)" ;; filesall)  P="$P\$(ffilesall)" ;;
           size)       P="$P\$(A=\" \"\$?; countbytes)";; sizeall) P="$P\$(A=\"A\"\$?; countbytes)";;
           uptime)     P="$P\$(fuptime)" ;;  users) P="$P\$(fusers)" ;;
@@ -382,7 +381,7 @@ case $1 in
     if [[ "$P" == "exit" ]]; then return 3; fi
    fi
     [[ -f "$savefile" ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null "$savefile"
-    echo "º""$aux""º""$PS1""º""$(echo -e "$(echo "$PS1" | sed 's/\\n/\\\\n/g')" | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\H/host\.org/g' -e 's/\\w/~\/ejemplo/g' -e 's/\\W/ejemplo/g' -e 's/\\!/1024/g' -e 's/\\#/25/g' -e 's/\$?/0/g' -e 's/\\a//g' -e 's/\\j/2/g' -e 's/\\s/-bash/g' -e 's/\\v/3.2/g' -e 's/\\V/3.2.17/g' -e 's/\$(ffiles)/18/g' -e 's/\$(ffilesall)/20/g' -e 's/\$(A=" "\$?; countbytes)/10,20 Mb/g' -e 's/\$(A="A"\$?; countbytes)/15,20 Mb/g' -e "s/\$(fuptime)/2:30/g" -e "s/\$(fusers)/4/g" -e 's/\$(truncdir)/\.\.\.muchos\/directorios/g' -e 's/\$(batterystat)/^80/g' -e "s/\$(fmail)/12/g" -e "s/\$(funnyface)/:-)/g" -e 's/\$(A=a0; crazydate)/vie/g' -e 's/\$(A=A0; crazydate)/viernes/g' -e 's/\$(A=b0; crazydate)/feb/g' -e 's/\$(A=B0; crazydate)/febrero/g' -e 's/\$(A=d0; crazydate)/13/g' -e 's/\$(A=H0; crazydate)/20/g' -e 's/\$(A=I0; crazydate)/20/g' -e 's/\$(A=j0; crazydate)/213/g' -e 's/\$(A=m0; crazydate)/02/g' -e 's/\$(A=M0; crazydate)/11/g' -e 's/\$(A=N0; crazydate)/3245196870/g' -e 's/\$(A=P0; crazydate)/pm/g' -e 's/\$(A=r0; crazydate)/08:11:32/g' -e 's/\$(A=S0; crazydate)/32/g' -e 's/\$(A=U0; crazydate)/32/g' -e 's/\$(A=w0; crazydate)/6/g' -e 's/\$(A=x0 crazydate)/01\/02\/09/g' -e 's/\$(A=X0; crazydate)/20:11:32/g' -e 's/\$(A=y0; crazydate)/09/g' -e 's/\$(A=Y0; crazydate)/2009/g' -e 's/\$(A=Z0; crazydate)/ART/g')" >> "$savefile"
+    echo "º""$aux""º""$PS1""º""$(echo -e "$(echo "$PS1" | sed 's/\\n/\\\\n/g')" | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\H/host\.org/g' -e 's/\\w/~\/ejemplo/g' -e 's/\\W/ejemplo/g' -e 's/\$(sign)/\$/g' -e 's/\\!/1024/g' -e 's/\\#/25/g' -e 's/\$?/0/g' -e 's/\\a//g' -e 's/\\j/2/g' -e 's/\\s/-bash/g' -e 's/\\v/3.2/g' -e 's/\\V/3.2.17/g' -e 's/\$(ffiles)/18/g' -e 's/\$(ffilesall)/20/g' -e 's/\$(A=" "\$?; countbytes)/10,20 Mb/g' -e 's/\$(A="A"\$?; countbytes)/15,20 Mb/g' -e "s/\$(fuptime)/2:30/g" -e "s/\$(fusers)/4/g" -e 's/\$(truncdir)/\.\.\.muchos\/directorios/g' -e 's/\$(batterystat)/^80/g' -e "s/\$(fmail)/12/g" -e "s/\$(funnyface)/:-)/g" -e 's/\$(A=a0; crazydate)/vie/g' -e 's/\$(A=A0; crazydate)/viernes/g' -e 's/\$(A=b0; crazydate)/feb/g' -e 's/\$(A=B0; crazydate)/febrero/g' -e 's/\$(A=d0; crazydate)/13/g' -e 's/\$(A=H0; crazydate)/20/g' -e 's/\$(A=I0; crazydate)/20/g' -e 's/\$(A=j0; crazydate)/213/g' -e 's/\$(A=m0; crazydate)/02/g' -e 's/\$(A=M0; crazydate)/11/g' -e 's/\$(A=N0; crazydate)/3245196870/g' -e 's/\$(A=P0; crazydate)/pm/g' -e 's/\$(A=r0; crazydate)/08:11:32/g' -e 's/\$(A=S0; crazydate)/32/g' -e 's/\$(A=U0; crazydate)/32/g' -e 's/\$(A=w0; crazydate)/6/g' -e 's/\$(A=x0 crazydate)/01\/02\/09/g' -e 's/\$(A=X0; crazydate)/20:11:32/g' -e 's/\$(A=y0; crazydate)/09/g' -e 's/\$(A=Y0; crazydate)/2009/g' -e 's/\$(A=Z0; crazydate)/ART/g')" >> "$savefile"
     echo -e "\033[0;32mEl prompt actual se ha guardado satisfactoriamente en $savefile\033[0m"
     return 0
     ;;
