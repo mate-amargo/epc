@@ -3,19 +3,20 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.6
-# 29 Julio 2009
-# Start time 15:45
-# Stop time 16:45
+# Version 0.7
+# 30 Julio 2009
+# Start time 20:45
+# Stop time 23:35
 # Changelog:
-# Arreglado el codigo de guardar un prompt, se agrego la posibilidad de
-# cancelar el guardado presionando CTRL-C
+# Arreglado cambiar un prompt en el caso de que el archivo tenga comentarios
+# Reescrito cambiar un prompt, quedo mas corto y mas simple
+# Hecho el codigo de borrar un prompt
 # =============================================================================
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.6"
+local scrname="epc" scrver="0.7"
 local savefile=~/.prompts
 local aux="" P="" space=""
 local i=0
@@ -37,11 +38,12 @@ case $1 in
       echo "La lista se crea automaticamente al guardar un prompt (opcion -s)"
       return 2
     else
+      sed -n '/^:/p' $savefile | \
       awk -F ":" 'BEGIN {print "Lista de prompts almacenados actualmente\n\n \
       \tNumero\t\tNombre\t\tVista Previa\n \
       \t======\t\t======\t\t============\n"}\
       { num = num + 1 }\
-      {print "\t"num"\t\t"$2"\t\t"$4"\n"}' $savefile
+      {print "\t"num"\t\t"$2"\t\t"$4"\n"}'
     fi
     ;;
   -c | --change) # Cambia el prompt actual por uno de la lista
@@ -54,22 +56,24 @@ case $1 in
         pname="$pname ""$1"
         shift
       done
-      if [[ ! $(awk -F : '{num = num +1}{print num,$2}' $savefile | grep -m 1 "$pname") ]]; then
-        echo -e "\033[31mNo se ha encontrado $pname en la lista de prompts\033[0m"
-        return 2
-      else
-        aux=$(echo $pname | cut -d " " -f 1); declare -i aux=$aux; #Si pname era una string, aux=0
-        if (( $aux != 0 )); then
-          export PS1="$(awk -F: '{num = num+1}{print num,$3 }' \
-          $savefile | grep -m 1 ^$pname | cut -d " " -f 2-)"
-                     # grep -m 1 se detiene desp de 1 encuentro
-                     # awk -F : = awk -F: = awk -F ":" = awk 'BEGIN {FS=":"}'
-        else
-          export PS1="$(awk -F: '{print $2$3}' \
-          $savefile | grep -m 1 "$pname" | awk -F "$pname" '{print $2}' )"
-        fi
-        echo "Prompt cambiado exitosamente!"
+      aux=$(echo $pname | cut -d " " -f 1); declare -i aux=$aux; #Si pname era una string, aux=0
+      if (( $aux != 0 )); then # El tipo ingreso un numero de prompt
+        # awk -F : = awk -F: = awk -F ":" = awk 'BEGIN {FS=":"}'
+        # sed -n '/^:/p' saca todos los comentarios y basuras del archivo
+        P="$(sed -n '/^:/p' $savefile | awk -F: '{num = num+1}{print num,$3}' \
+        | grep "$pname " | cut -d " " -f 2-)" # el espacio de "$pname " es vital para encontrar
+                                              # pname y ademas encontrarlo exactamente
+      else  # El tipo ingreso un nombre de prompt
+        P="$(sed -n '/^:/p' $savefile | awk -F: '{print $2,$3}' \
+        | grep -m 1 "$pname " | awk -F "$pname " '{print $2}' )" # grep -m 1 stopts at 1st match
+      fi
+      if [ -n "$P" ]; then # Si P no esta vacia
+        export PS1="$P"
+        echo -e "\033[32mPrompt cambiado exitosamente!\033[0m"
         return 0
+      else
+        echo -e "\033[31mNo se encontro el prompt $pname en la lista de prompts\033[0m"
+        return 2
       fi
     fi
     ;;
@@ -190,6 +194,35 @@ case $1 in
   -b | --bashrc) # Hacer que el prompt actual sea el prompt por defecto
     ;;
   -d | --delete) # Borra un prompt de la lista
+    if (( $# == 1)); then
+      echo "Especifique un numero o un nombre de prompt para borrar"
+      return 1
+    else
+      pname="$2" ; shift 2
+      while (( $# != 0 )) ; do
+        pname="$pname ""$1"
+        shift
+      done
+      aux=$(echo $pname | cut -d " " -f 1); declare -i aux=$aux; #Si pname era una string, aux=0
+      if (( $aux != 0 )); then # El tipo ingreso un numero
+        P="$(awk '{num = num+1}{print $0,num}' $savefile | sed -n '/^:/p' | \
+        sed -n "$pname"p | awk -F " " '{print $NF}')" #NF= number of fields => $NF imprime el ultimo
+      else  # El tipo ingreso un nombre de prompt
+        P="$(awk '{num = num+1}{print $0,num}' $savefile | sed -n '/^:/p' | \
+        grep -m 1 ":$pname:" | awk -F " " '{print $NF}')" # grep -m 1 stopts at 1st match
+      fi
+      if [ -n "$P" ]; then
+        sed -i "$P"d $savefile
+        if (( $(sed -n '/^:/p' $savefile | wc -l) == 0 )); then #Si el prompt que acaba de borrarse
+          rm -f $savefile # era el ultimo de la lista => borra el archivo
+        fi
+        echo -e "\033[32mPrompt borrado exitosamente!\033[0m"
+        return 0
+      else
+       echo -e "\033[31mNo se encontro el prompt $pname en la lista de prompts\033[0m"
+       return 2
+      fi
+    fi
     ;;
   *) # else, case else
     echo -e "\033[1;31mOpcion o argumento invalido\033[0m"
