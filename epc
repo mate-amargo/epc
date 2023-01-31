@@ -3,20 +3,19 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.5
+# Version 0.6
 # 29 Julio 2009
-# Start time 02:31
-# Stop time 05:10
+# Start time 15:45
+# Stop time 16:45
 # Changelog:
-# Se arreglo el codigo de cambiar un promt
-# Se impusieron mas restricciones sore guardar un prompt, el nombre no puede
-# empezar con un numero ni un nombre ya guardado (casi, arreglar despues,sueño)
+# Arreglado el codigo de guardar un prompt, se agrego la posibilidad de
+# cancelar el guardado presionando CTRL-C
 # =============================================================================
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.5"
+local scrname="epc" scrver="0.6"
 local savefile=~/.prompts
 local aux="" P="" space=""
 local i=0
@@ -167,18 +166,24 @@ case $1 in
       pname="$pname ""$1"
       shift
     done
+   aux="$pname"
+  if [ -f $savefile ] && (( $( awk 'BEGIN {FS=":"} {print $2}' $savefile | grep -m 1 "$aux" | wc -l) >= 1 )); then
     aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux; aux="$pname"
-    while [ "$pname" == "$aux" ] || ((i != 0)) || \
-    (( $( awk 'BEGIN {FS=":"} {print $2}' $savefile | grep -m 1 "$aux" | wc -l) >= 1 )); do
+    while [ "$pname" == "$aux" ] || ((i != 0)) || ([ -f $savefile ] && \
+    (( $( awk 'BEGIN {FS=":"} {print $2}' $savefile | grep -m 1 "$aux" | wc -l) >= 1 ))); do
+     trap 'echo -e "\033[31m\b\b  \nEl propmt no ha sido guardado porque se recibio una señal de terminar\033[0m\n"; return 3 ' SIGINT SIGTERM
      echo
-     echo -e "\033[31mYa equiste un prompt con el nombre $aux\033[0m\n"
+     if [ -f $savefile ] && (( $( awk 'BEGIN {FS=":"} {print $2}' $savefile | grep -m 1 "$aux" | wc -l) >= 1 )); then
+       echo -e "\033[31mYa existe un prompt con el nombre $aux\033[0m\n"
+     fi
      if ((i != 0)); then echo "No esta permitido que el nombre sea un numero"; fi
-     aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux;
-     echo -n "Por favor ingrese un nombre distinto: "
+     echo -n "Por favor ingrese un nombre distinto (CTRL-C para cancelar): "
      read aux
+     aux=$(echo $aux | cut -d " " -f 1); declare -i i=$aux;
     done
+   fi
     [[ -f $savefile ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null $savefile
-    echo ":$pname:$PS1:$(echo -e $PS1 | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g')" >> $savefile
+    echo ":$aux:$PS1:$(echo -e $PS1 | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g')" >> $savefile
     echo "El prompt actual se ha guardado satisfactoriamente en $savefile"
     return 0
     ;;
