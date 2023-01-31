@@ -3,26 +3,34 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.8
+# Version 0.9
 # 31 Julio 2009
-# Start time 00:20
-# Stop time 03:00
+# Start time 15:25
+# Stop time 20:00
 # Changelog:
-# Hecho el codigo de -b (Exportar el prompt a ~/.bashrc)
-# Mensajes de errores en diferentes colores:
-# 0 Verde = Terminacion normal, no hubo errores
-# 1 Amarillo (naranja, casi marron) = Mal uso de algun comando u opcion
-# 2 Rojo = Error, no se encontro el archivo, o una linea en un archivo
-# 3 Rojo = Terminacion anormal del programa, recibio señal de kill
+# Quitado el color white, ahora se consigue haciendo normal, o normal bold para
+# un blanco intenso.
+# Agregados reemplazos de sed (-e) en guardar un prompt para la vista previa,
+# faltan agregar mas
+# Cambiada la salida de epc -l
+# Cambiado el separador de registros en el archivo, ahora es "º", ya no se
+# requiere mas de un caracter de espacio para hacer el prompt. Pero º no se
+# puede usar en el prompt. Lo cual es mejor porque asi se evitan problemas al
+# cambiar los prompts, ya que este se lee como el separado en el archivo
+# Actualizada la ayuda de crear un prompt
+# Cambiado bashrc, se le agrega \ a la funcion \$?, asi cada vez que se carga
+# se ejecuta correctamente, notar que no hay que poner la barra \ en el prompt
+# comun (en el $savefile) porque sale literal, no calcula el valor.
+# Arreglado epc -s
 # =============================================================================
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.8"
+local scrname="epc" scrver="0.9"
 local savefile=~/.prompts # No ponerle comillas porque sino no anda
 local rcfile=~/.bashrc    # Idem
-local aux="" P="" space=""
+local aux="" P=""
 local i=0
 local base="\[\e["
 local pname=""
@@ -38,21 +46,22 @@ case $1 in
     ;;
   -l | --list) # Muestra una lista de los prompts disponibles
     if [ ! -f "$savefile" ]; then
-      echo "\033[0;31mNo existe una lista de prompts\033[0m"
+      echo -e "\033[0;31mNo existe una lista de prompts\033[0m"
       echo "La lista se crea automaticamente al guardar un prompt (opcion -s)"
       return 2
     else
-      sed -n '/^:/p' $savefile | \
-      awk -F ":" 'BEGIN {print "Lista de prompts almacenados actualmente\n\n \
-      \tNumero\t\tNombre\t\tVista Previa\n \
-      \t======\t\t======\t\t============\n"}\
+      sed -n '/^º/p' $savefile | \
+      awk -F "º" 'BEGIN {print "Lista de prompts almacenados actualmente\n\n \
+      \tNumero\t\tNombre\t\t\t\tVista Previa\n \
+      \t======\t\t======\t\t\t\t============\n "}\
       { num = num + 1 }\
-      {print "\t"num"\t\t"$2"\t\t"$4"\n"}'
+      {print "\t"num"\t\t"$2"\t\t\t\t"$4"\n"}'
+      return 0
     fi
     ;;
   -c | --change) # Cambia el prompt actual por uno de la lista
     if (( $# == 1)); then
-      echo "\033[0;33mEspecifique un numero o un nombre de prompt a cambiar por favor\033[0m"
+      echo -e "\033[0;33mEspecifique un numero o un nombre de prompt a cambiar por favor\033[0m"
       return 1
     else
       pname="$2" ; shift 2
@@ -62,14 +71,14 @@ case $1 in
       done
       aux=$(echo $pname | cut -d " " -f 1); declare -i aux=$aux; #Si pname era una string, aux=0
       if (( $aux != 0 )); then # El tipo ingreso un numero de prompt
-        # awk -F : = awk -F: = awk -F ":" = awk 'BEGIN {FS=":"}'
-        # sed -n '/^:/p' saca todos los comentarios y basuras del archivo
-        P="$(sed -n '/^:/p' $savefile | awk -F: '{num = num+1}{print num,$3}' \
+        # awk -F º = awk -Fº = awk -F "º" = awk 'BEGIN {FS="º"}'
+        # sed -n '/^º/p' saca todos los comentarios y basuras del archivo
+        P="$(sed -n '/^º/p' $savefile | awk -Fº '{num = num+1}{print num,$3}' \
         | grep "$pname " | cut -d " " -f 2-)" # el espacio de "$pname " es vital para encontrar
                                               # pname y ademas encontrarlo exactamente
       else  # El tipo ingreso un nombre de prompt
-        P="$(sed -n '/^:/p' $savefile | awk -F: '{print $2,$3}' \
-        | grep -m 1 "$pname " | awk -F "$pname " '{print $2}' )" # grep -m 1 stopts at 1st match
+        P="$(sed -n '/^º/p' $savefile | awk -Fº '{print $2"º"$3}' \
+        | grep -m 1 "$pname""º" | awk -F "$pname""º" '{print $2}' )" # grep -x cancela regexps
       fi
       if [ -n "$P" ]; then # Si P no esta vacia
         export PS1="$P"
@@ -83,33 +92,28 @@ case $1 in
     ;;
   -m | --make) # Crea un nuevo prompt
     if (( $# == 1 )); then
-      echo -e "\033[1;33mUso incorrecto. Faltan argumentos\033[0m\n"
+      echo -e "\033[0;33mUso incorrecto. Faltan argumentos\033[0m\n"
       echo "Uso de $scrname con la opcion -m:"
-      echo "$scrname -m [CARACTER DE ESPACIO] CONSTRUCTORES"
-      echo "La opcion entre [] sirve para espicificar un caracter que al ser ingresado"
-      echo "sera reemplazado por un espacio en el prompt resultante."
-      echo "Esto es asi, ya que el constructor del prompt no reconoce los espacios,"
-      echo "por lo tanto hay que utilizar otro caracter a su eleccion."
-      echo "Recuerde que el 1er parametro luego de -m se tomara como el CARACTER DE"
-      echo "ESPACIO, a menos que este sea el unico parametro luego de -m. En ese caso"
-      echo -e "sera usado como el prompt. A continuacion algunos ejemplos:\n"
-      echo "Usando '_' como caracter de espacio"
-      echo "$scrname -m _ lbgreen user @ host _ [ _ white wdir lbgreen _ ] _ sign _ normal"
-      echo -e "Resultado:\033[1;32musuarionormal@localhost [\033[1;37m /usr/bin\033[1;32m ] $ \033[0m\n"
-      echo "Especificando solo un parametro a $scrname -m"
-      echo "$scrname -m #"
-      echo -e "Resultado:#\n"
+      echo "$scrname -m CONSTRUCTORES"
+      echo "El constructor del prompt no reconoce los espacios, por lo que si desea un"
+      echo "espacio debera usar el caracter "º", este sera reemplazado por un espacio"
+      echo "en el prompt resultante. Por lo tanto el caracter "º" no podra ser usado "
+      echo "como caracter normal dentro del prompt. Si lo usa pegado a algun constructor"
+      echo "entonces este es ignorado y se usa el nombre del constructor, en vez de su"
+      echo "significado"
+      echo -e "A continuacion algunos ejemplos:\n"
+      echo "Colores, usuario, host, y un signo $ en caso de usuario normal, un # para root"
+      echo "$scrname -m bold green user normal bold @ blue host º normal green sign normal"
+      echo -e "Resultado:\033[1;32musuario\033[0m\033[1m@\033[1;34mlocalhost \033[0;32m$ \033[0m\n"
+      echo "Usar un nombre dentro del prompt que es un constructor"
+      echo "$scrname -m normal todo º es º normalº red [ º wdir º ] º normal sign"
+      echo -e "Resultado:\033[0mtodo es normal\033[0;31m[ ~/ejemplo ]\033[0m $\n"
       echo "Para una lista detallada de los constructores y de otros modos de"
       echo "usar $scrname pruebe $scrname -h ó $scrname --help."
       echo "Para obtener informacion aún más detallada: info $scrname ó man $scrname"
       return 1
-    elif
-      (( $# == 2 )); then # Si solo se da un argumeto luego de la opcion -m
-      P="$2"              # este se toma como unico caracter del prompt
-    fi                    # De no ser asi (se dan mas de 1 argumento luego de -m)
-    space="$2"            # Entonces se usa el 1 parametro (despues de -m) como caracter de espacio
-                          # Y se procesan los siguientes parametros
-    shift 2 # Saca los n primeros argumentos argumentos
+    fi
+    shift # Saca los n primeros argumentos
     while (( $# > 0 )); do
       let i=1
       while [[ $(echo $1 | awk '{print NR}') -eq i ]] ; do # Repetir hasta que no haya argumentos
@@ -118,11 +122,10 @@ case $1 in
           # Colores!!!
 
           # Foreground                                        Background
-          white)      P="$P""$base""0m\]" ;;
           black)      P="$P""$base""30m\]" ;;      bblack)     P="$P""$base""40m\]" ;;
           red)        P="$P""$base""31m\]" ;;      bred)       P="$P""$base""41m\]" ;;
           green)      P="$P""$base""32m\]" ;;      bgreen)     P="$P""$base""42m\]" ;;
-          brown)      P="$P""$base""33m\]" ;;      bbrown)     P="$P""$base""43m\]" ;;
+          yellow)     P="$P""$base""33m\]" ;;      byellow)    P="$P""$base""43m\]" ;;
           blue)       P="$P""$base""34m\]" ;;      bblue)      P="$P""$base""44m\]" ;;
           purple)     P="$P""$base""35m\]" ;;      bpurple)    P="$P""$base""45m\]" ;;
           cyan)       P="$P""$base""36m\]" ;;      bcyan)      P="$P""$base""46m\]" ;;
@@ -135,7 +138,6 @@ case $1 in
 
           # Chucherias!!!
 
-          $space)   P="$P " ;;
           bell)     P="$P\a" ;;
           host)     P="$P\h" ;;
           hostfull) P="$P\H" ;;
@@ -156,17 +158,20 @@ case $1 in
           date)     P="$P\$(date +%D)" ;;
           "(")      P="$P""(" ;;
           ")")      P="$P"")" ;;
+          "º" )     P="$P " ;;
           *)        P="$P""$aux" ;;
         esac
         let i=$i+1
       done
       shift
     done
-    export PS1="$P"
+    export PS1="$(echo "$P" | sed 's/º//g')"
+    echo -e "\033[0;32mPrompt creado!\033[0m"
+    return 0
     ;;
   -s | --save) # Guardar el prompt actual en la lista de prompts conocidos
     if [ -z $2 ]; then
-      echo "\033[0;33mDebe especificar un nombre para guardar el prompt actual\033[0m"
+      echo -e "\033[0;33mDebe especificar un nombre para guardar el prompt actual\033[0m"
       return 1
     fi
     pname=$2 ; shift 2
@@ -174,38 +179,38 @@ case $1 in
       pname="$pname ""$1"
       shift
     done
-   aux="$pname"
-  if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS=":"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 )); then
-    aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux; aux="$pname"
+   aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux; aux="$pname"
+  if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 )) || ((i != 0)); then
     while [ "$pname" == "$aux" ] || ((i != 0)) || ([ -f "$savefile" ] && \
-    (( $( awk 'BEGIN {FS=":"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 ))); do
-     trap 'echo -e "\033[0;31m\b\b  \nEl propmt no ha sido guardado porque se recibio una señal de terminar\033[0m\n"; return 3 ' SIGINT SIGTERM
+    (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 ))); do
+     local trap 'echo -e "\033[0;31m\b\b  \nEl propmt no ha sido guardado porque se recibio una señal de terminar\033[0m\n"; return 3 ' SIGINT SIGTERM
      echo
-     if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS=":"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 )); then
-       echo -e "\033[0;31mYa existe un prompt con el nombre $aux\033[0m\n"
+     if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 )); then
+       echo -e "\033[0;31mYa existe un prompt con el nombre $aux\033[0m"
      fi
-     if ((i != 0)); then echo "No esta permitido que el nombre sea un numero"; fi
+     if ((i != 0)); then echo -e "\033[0;31mNo esta permitido que el nombre sea un numero\033[0m";fi
      echo -n "Por favor ingrese un nombre distinto (CTRL-C para cancelar): "
      read aux
-     aux=$(echo $aux | cut -d " " -f 1); declare -i i=$aux;
+     declare -i i=$(echo $aux | cut -d " " -f 1)
     done
    fi
     [[ -f "$savefile" ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null "$savefile"
-    echo ":$aux:$PS1:$(echo -e $PS1 | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g')" >> "$savefile"
-    echo "\033[0;32mEl prompt actual se ha guardado satisfactoriamente en $savefile\033[0m"
+    echo "º""$aux""º""$PS1""º""$(echo -e "$PS1" | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g' -e 's/\\W/ejemplo/g' -e 's/\\!/1024/g' -e 's/\\#/25/g' -e 's/\$?/0/g')" >> "$savefile"
+    echo -e "\033[0;32mEl prompt actual se ha guardado satisfactoriamente en $savefile\033[0m"
     return 0
     ;;
   -b | --bashrc) # Hacer que el prompt actual sea el prompt por defecto
     if [ ! -f "$rcfile" ]; then install -m u+rw-x,g-rwx,o-rwx -T /dev/null "$rcfile"; fi
     if [ -n "$(grep PS1 "$rcfile")" ]; then sed -i '/PS1/d' "$rcfile"; fi
-    echo "export PS1=\"$PS1\"" >> "$rcfile"
+    aux="$(echo "$PS1" | sed 's/\$?/\\\$?/g')"
+    echo "export PS1=\"$aux\"" >> "$rcfile"
     echo -e "\033[0;32mEl prompt se ha exportado a $rcfile\033[0m"
     echo "En el proximo login que haga, este sera su prompt por defecto"
     return 0
     ;;
   -d | --delete) # Borra un prompt de la lista
     if (( $# == 1)); then
-      echo "\033[0;33mEspecifique un numero o un nombre de prompt para borrar\033[0m"
+      echo -e "\033[0;33mEspecifique un numero o un nombre de prompt para borrar\033[0m"
       return 1
     else
       pname="$2" ; shift 2
@@ -213,24 +218,31 @@ case $1 in
         pname="$pname ""$1"
         shift
       done
-      aux=$(echo $pname | cut -d " " -f 1); declare -i aux=$aux; #Si pname era una string, aux=0
-      if (( $aux != 0 )); then # El tipo ingreso un numero
-        P="$(awk '{num = num+1}{print $0,num}' $savefile | sed -n '/^:/p' | \
-        sed -n "$pname"p | awk -F " " '{print $NF}')" #NF= number of fields => $NF imprime el ultimo
-      else  # El tipo ingreso un nombre de prompt
-        P="$(awk '{num = num+1}{print $0,num}' $savefile | sed -n '/^:/p' | \
-        grep -m 1 ":$pname:" | awk -F " " '{print $NF}')" # grep -m 1 stopts at 1st match
-      fi
-      if [ -n "$P" ]; then
-        sed -i "$P"d $savefile
-        if (( $(sed -n '/^:/p' $savefile | wc -l) == 0 )); then #Si el prompt que acaba de borrarse
-          rm -f $savefile # era el ultimo de la lista => borra el archivo
+      if [[ -f $savefile ]]; then
+        aux=$(echo $pname | cut -d " " -f 1); declare -i aux=$aux; #Si pname era una string, aux=0
+        if (( $aux != 0 )); then # El tipo ingreso un numero
+          P="$(awk '{num = num+1}{print $0,num}' $savefile | sed -n '/^º/p' | \
+          sed -n "$pname"p | awk -F " " '{print $NF}')"
+          # NF = number of fields => $NF imprime el ultimo
+        else  # El tipo ingreso un nombre de prompt
+          P="$(awk '{num = num+1}{print $0,num}' $savefile | sed -n '/^º/p' | \
+          grep -m 1 "º$pnameº" | awk -F " " '{print $NF}')" # grep -m 1 stopts at 1st match
         fi
-        echo -e "\033[0;32mPrompt borrado exitosamente!\033[0m"
-        return 0
+        if [ -n "$P" ]; then
+          sed -i "$P"d $savefile
+          if (( $(sed -n '/^º/p' $savefile | wc -l) == 0 )); then
+            #Si el prompt que acaba de borrarse
+            rm -f $savefile # era el ultimo de la lista => borra el archivo
+          fi
+          echo -e "\033[0;32mPrompt borrado exitosamente!\033[0m"
+          return 0
+        else
+          echo -e "\033[0;31mNo se encontro el prompt $pname en la lista de prompts\033[0m"
+          return 2
+        fi
       else
-       echo -e "\033[0;31mNo se encontro el prompt $pname en la lista de prompts\033[0m"
-       return 2
+        echo -e "\033[0;31mNo se encontro el archivo de prompts $savefile\033[0m"
+        return 2
       fi
     fi
     ;;
