@@ -1,0 +1,18 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+
+source epcf
+Defdir="$HOME"/.epc/defaults
+
+if [ -d "$Defdir" ]; then 
+  if [ -f "$Defdir"/default ]; then
+    source "$Defdir"/default
+  fi
+  for prompt in $(ls $Defdir); do
+    if [[ "$(tty | cut -d / -f 3- | sed 's/\///')" == "$prompt" ]]; then
+      source "$Defdir/$prompt"
+      break
+    fi
+  done
+fi
+unset Defdir

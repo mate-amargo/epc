@@ -1,0 +1,27 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## .../dir
+### Shows the working directory in a summarized way, by trunking the
+### directory string and prefixing it with the content of the variable
+### tdirsymbol. The variable tdirlong is used to determine when the
+### directory will be cutted
+
+tdir () {
+
+local ret=$?
+local aux=$(echo $tdirlong | sed 's/[[:digit:]]//g')
+if [ -n "$aux" ]; then 
+  tdirlong=""
+fi
+: ${tdirlong:=25}
+: ${tdirsymbol=...}
+local dir="$(pwd | awk -F $HOME '{if (NF == 1) print $NF; else print "~"$NF}')"
+if (( ${#dir} >= $tdirlong )); then
+  local offset=$(( ${#dir} - $tdirlong ))
+  dir="$tdirsymbol""$(echo ${dir:$offset:$tdirlong} | sed 's/\w*//')"
+fi
+echo -n "$dir"
+unset dir offset aux
+return $ret
+
+}

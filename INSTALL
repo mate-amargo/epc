@@ -1,0 +1,16 @@
+To install epc just do the usual
+  ./configure
+  make
+  make install (as a privileged user)
+
+Notes:
+  The default prefix is "/usr" not "/usr/local"
+
+VERY IMPORTANT!!!
+  To complete the installation every user must do the following:
+    Put a line like "source ~/.epc/epcrc" in their ".bashrc" or
+    ".bash_profile". The ideal will be to have the ".bash_profile"
+    pointing to the ".bashrc" in order to always excecute epc.
+    Next copy the file epcrc (located at $(datadir)
+    that will be /usr/share/epc by default) to a directory named
+    .epc in their home directory.

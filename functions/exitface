@@ -1,0 +1,17 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## :-)
+### Show a happy face if the last command exit with a 0 status
+### Otherwise shows a angry face
+
+exitface () {
+
+local ret=$?
+if (( $ret == 0 )); then
+  echo -n ':-)'
+else
+  echo -n ':-('
+fi
+return $ret
+
+}

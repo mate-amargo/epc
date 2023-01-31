@@ -1,0 +1,12 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 5
+### Count how many regular files exist in the current directory
+
+files () {
+
+local ret=$?
+command ls -l | grep ^- | wc -l
+return $ret
+
+}

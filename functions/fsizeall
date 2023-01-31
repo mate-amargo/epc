@@ -1,0 +1,33 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 20Mb
+### Count the size of all  files contained in the current directory
+### The variable sizeseparator holds the separator for the decimal values
+
+fsizeall () {
+
+local ret=$?
+: ${sizeseparator:=,}
+let TotalBytes=0 Bytes=0
+for Bytes in $(command ls -A | awk '{ print $5 }'); do
+  let TotalBytes=$TotalBytes+$Bytes
+done
+if (( $TotalBytes <= 1024 )); then
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes \nquit" | bc)
+  suffix="b"
+elif (( $TotalBytes <= 1048576 )); then
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes/1024 \nquit" | bc)
+  suffix="Kb"
+elif (( $TotalBytes <= 1073741824 )); then
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes/1048576 \nquit" | bc)
+  suffix="Mb"
+else
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes/1073741824 \nquit" | bc)
+  suffix="Gb"
+fi
+
+echo -n "${TotalSize}${suffix}" | eval sed 's/\\./$sizeseparator/'
+unset TotalSize TotalBytes Bytes suffix
+return $ret
+
+}

@@ -1,0 +1,12 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 75%
+### Shows the charge of the battery in percentage
+
+battstate () {
+
+local ret=$?
+acpi -b | awk '{print $4}' | cut -d , -f 1
+return $ret
+
+}

@@ -1,0 +1,12 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 5
+### Shows how many users are logged in
+
+users () {
+
+local ret=$?
+who | wc -l
+return $ret
+
+}

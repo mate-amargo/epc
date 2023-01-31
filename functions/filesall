@@ -1,0 +1,12 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 8
+### Count all the files in the current directory
+
+filesall () {
+
+local ret=$?
+command ls -A | wc -l
+return $ret
+
+}

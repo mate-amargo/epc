@@ -1,0 +1,12 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 7:00
+### Shows the time the systems has been running
+
+fuptime () {
+
+local ret=$?
+uptime | awk '{print $3}' | cut -d , -f 1
+return $ret
+
+}

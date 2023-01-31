@@ -1,0 +1,20 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## (]=
+### Shows the symbol stored in the variable battsymbolon when the 
+### laptop is conected to the line, and shows battsymboloff when its
+### unplugged
+
+battplug () {
+
+local ret=$?
+: ${battsymbolon:="(]="}
+: ${battsymboloff=""}
+if [[ "on-line" == $(acpi -a | awk '{print $3}') ]]; then
+  echo -n "$battsymbolon"
+else
+  echo -n "$battsymboloff"
+fi
+return $ret
+
+}

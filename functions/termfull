@@ -1,0 +1,12 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## pts/0
+### Shows the device terminal
+
+termfull () {
+
+local ret=$?
+tty | cut -d / -f 3-
+return $ret
+
+}

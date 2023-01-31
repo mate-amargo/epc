@@ -1,0 +1,13 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 31/05/1989
+### Pass the string contained in the variable dformat
+### to the date program and returns its result
+
+fdate () {
+
+local ret=$?
+date +"$dformat"
+return $ret
+
+}

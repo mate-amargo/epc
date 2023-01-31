@@ -1,0 +1,14 @@
+#!/bin/bash
+# This is the function epc from the EPC program
+# written by Juan Alberto Regalado Galván
+
+epc () {
+
+  epcc "$@"
+  if [ -f "$HOME/.epc/tmp" ]; then
+    # cat $HOME/.epc/tmp
+    source $HOME/.epc/tmp
+    rm $HOME/.epc/tmp
+  fi
+
+}

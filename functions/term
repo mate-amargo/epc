@@ -1,0 +1,12 @@
+#!/bin/bash
+# This is part of the EPC program writen by Juan Alberto Regalado Galván
+## 0
+### Shows the number of the terminal
+
+term () {
+
+local ret=$?
+tty | grep -o '[[:digit:]]' | column | sed 's/\t//'
+return $ret
+
+}
