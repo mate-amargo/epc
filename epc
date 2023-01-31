@@ -3,31 +3,138 @@
 # =============================================================================
 # Made by jarg
 # =============================================================================
-# Version 0.9
-# 31 Julio 2009
-# Start time 15:25
-# Stop time 20:00
+# Version 1.0
+# 1 Agosto 2009
+# Start time 00:35
+# Stop time 07:40
+# Resume time 22:25
+# 2 Agosto 2009
+# Stop time 00:20
+# Resume time 02:30
+# Stop time 06:00
+# 3 Agosto 2009
+# Resume time 02:00
+# End time 05:00
 # Changelog:
-# Quitado el color white, ahora se consigue haciendo normal, o normal bold para
-# un blanco intenso.
-# Agregados reemplazos de sed (-e) en guardar un prompt para la vista previa,
-# faltan agregar mas
-# Cambiada la salida de epc -l
-# Cambiado el separador de registros en el archivo, ahora es "º", ya no se
-# requiere mas de un caracter de espacio para hacer el prompt. Pero º no se
-# puede usar en el prompt. Lo cual es mejor porque asi se evitan problemas al
-# cambiar los prompts, ya que este se lee como el separado en el archivo
-# Actualizada la ayuda de crear un prompt
-# Cambiado bashrc, se le agrega \ a la funcion \$?, asi cada vez que se carga
-# se ejecuta correctamente, notar que no hay que poner la barra \ en el prompt
-# comun (en el $savefile) porque sale literal, no calcula el valor.
-# Arreglado epc -s
+# Agregadas chucherias!
+# Terminado el sed gigante de save
+# Terminada la ayuda
+# Arreglado el problema de los exitcode, ahora todos los comandos que generan
+# salidas dentro del prompt se pasan el exitcode anterior de la forma ret=$?
+# return $ret
 # =============================================================================
+
+
+countbytes () {
+
+local ret=${A:1}
+
+# Esta funcion usa bc, una calculadora que entra en modo interactivo
+# Seteamos la escala a 2 digitos, hace la cuenta y sale
+# Con sed cambiamos la salida en formato americano (.) por una coma (,)
+
+let TotalBytes=0
+
+if [ "${A:0:1}" == " " ]; then
+  for Bytes in $(ls -l | grep "^-" | awk '{ print $5 }');
+  do
+    let TotalBytes=$TotalBytes+$Bytes
+  done
+else
+  for Bytes in $(ls -lA | awk '{ print $5 }');
+  do
+    let TotalBytes=$TotalBytes+$Bytes
+  done
+fi
+
+if (( $TotalBytes <= 1024 )); then
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes \nquit" | bc)
+  suffix="b"
+elif (( $TotalBytes <= 1048576 )); then
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes/1024 \nquit" | bc)
+  suffix="Kb"
+elif (( $TotalBytes <= 1073741824 )); then
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes/1048576 \nquit" | bc)
+  suffix="Mb"
+else
+  TotalSize=$(echo -e "scale=2 \n$TotalBytes/1073741824 \nquit" | bc)
+  suffix="Gb"
+fi
+
+echo -n "${TotalSize} ${suffix}" | sed 's/\./,/'
+unset TotalSize Bytes suffix
+return $ret
+
+}
+
+truncdir () {
+
+local ret=$?
+
+# Esta funcion trunca el directorio, en caso de que supere las 30 lineas
+
+local maxlength=30
+local dir="$(pwd | awk -F $HOME '{print "~"$NF}')"
+
+if (( ${#dir} >= maxlength )); then
+  local offset=$(((${#dir} - $maxlength)))
+  dir="...""$(echo ${dir:$offset:$maxlength} | sed 's/\w*//')"
+fi
+echo -n "$dir"
+unset dir maxlength offset
+return $ret
+
+}
+
+batterystat () {
+
+local ret=$?
+
+NO_AC_MESG="AC off"
+AC_MESG="AC on"
+
+APMD_RESPONSE="$(apm 2> /dev/null)"
+case ${APMD_RESPONSE} in
+  *${AC_MESG}*)
+    ACstat="^"
+    ;;
+  *${NO_AC_MESG}*)
+    ACstat="v"
+    ;;
+esac
+
+battery="${temp##* }"
+battery="${ACstat}${battery}"
+
+return $ret
+
+}
+
+ffiles () { local ret=$?; echo -n "$(ls -l | grep ^- | wc -l)" ; return $ret; }
+ffilesall () { local ret=$?; echo -n "$(ls -1A | wc -l)"; return $ret; }
+fuptime () { local ret=$?; echo -n "$(uptime | awk '{print $3}' | cut -d , -f 1)"; return $ret; }
+fusers () { local ret=$?; echo -n "$(uptime | awk '{print $4}')"; return $ret; }
+fmail () { local ret=$?; echo -n "$(if [[ -f $MAIL ]]; then cat $MAIL | grep -c ^Message; fi)"; return $ret; }
+crazydate () { local ret=${A:1}; echo -n "$(date +%${A:0:1})"; return $ret; }
+
+funnyface () {
+
+local ret=$?;
+if (( $ret == 0 )); then
+  echo -n ':-)'
+else
+  echo -n ':-('
+fi
+
+return $ret
+
+}
+
 
 epc () {
 
 # Variables locales a esta funcion
-local scrname="epc" scrver="0.9"
+local scrname="epc" scrver="1.0"
 local savefile=~/.prompts # No ponerle comillas porque sino no anda
 local rcfile=~/.bashrc    # Idem
 local aux="" P=""
@@ -37,7 +144,70 @@ local pname=""
 
 case $1 in
   -h | --help) # Imprime la ayuda y sale
-    echo ""
+    echo -e "\033[0;32m$scrname - Easy Prompt Changer version - $scrver\033[0m\n"
+    echo "Uso: $scrname [OPCION]"
+    echo -e "Donde [OPCION] es una y solo una de las siguientes:\n"
+    echo    " -h, --help                 :  Muestra esta ayuda"
+    echo    " -v, --version              :  Muestra el numero de version y sale"
+    echo    " -l, --list                 :  Lista los prompts almacenados actualmente"
+    echo -e " -c, --change [PROMPT]      :  Cambia el prompt actual, por uno de la lista.\n"
+    echo -e "  Donde [PROMPT] es el numero ó el nombre del prompt de la lista a cambiar.\n"
+    echo -e " -m, --make [CONSTRUCTORES] :  Crea un nuevo prompt y lo cambia a éste.\n"
+    echo    "  Donde [CONSTRUCTORES] pueden ser los siguientes (Se pueden combinar):"
+    echo    "   Colores de texto:"
+    echo    "     black = negro; red = rojo; green = verde; yellow = amarillo; blue = azul"
+    echo    "     purple = violeta; cyan = celeste; gray = gris"
+    echo    "   Colores de fondo:"
+    echo    "     b[color]: Donde [color] es uno de los de arriba"
+    echo    "   Efectos de texto:"
+    echo    "     normal = Todos los colores desde normal en adelante toman valores normales."
+    echo    "     Todo el texto desde normal en adelante es blanco"
+    echo    "     bold = Realza el tono de los colores (excepto los de fondo) "
+    echo    "     underscore = Subrayado; blink = Parpadeante; inverse = Invierte los colores"
+    echo    "     invisible = Invisible"
+    echo    "   Informacion del sistema:"
+    echo    "     host = Mauqina host hasta el primer "."; hostfull = Host completo"
+    echo    "     user = Usuario; terminal = Nombre de la terminal actual; shell = Nombre del"
+    echo    "     interprete; version = Version de la shell; release = Version completa"
+    echo    "     wdir = Directorio actual; Wdir = Base del directorio actual"
+    echo    "     tdir = Directorio actual truncado, solo en el caso de ser muy largo"
+    echo    "     hisnum = Numero de historia; cmdnum = Numero de Comando; uptime = Tiempo"
+    echo    "     que lleva encendido el sistema; users = Cantidad de usuarios conectados"
+    echo    "     battery = Carga de la bateria (v = Desconectada, ^ = Conectada)"
+    echo    "   Fecha y hora:"
+    echo    "     year = Año (2009); year99 = Año (09); month = Mes (01..12)"
+    echo    "     monthnames = Nombre corto del mes (ago); monthnamef = Nombre largo del"
+    echo    "     mes (agosto); day = Dia (01..31); daynames = Nombre corto del dia (vie)"
+    echo    "     daynamef = Nombre largo del dia (viernes); dayofweek = Dia de la semana"
+    echo    "     (0..6, 0 es Domingo); dayofyear = Dia del año (001..366); datel = Fecha"
+    echo    "     usando los valores locales ($(date +%x)); time24l = Hora usando los"
+    echo    "     valores locales (00..23:00..60:00..60); time12l = Igual que time24 pero"
+    echo    "     con la hora de 00 a 12 y usando am pm si el local lo soporta"
+    echo    "     hour24 = Hora (00..23); hour12 = Hora (01..12); ampm = am ó pm si es"
+    echo    "     soportado por el local; minutes = Minutos (00..60); seconds = Segundos"
+    echo    "     (00..60); nanosecs = Nanosegundos (000000000..999999999)"
+    echo    "     weekofyear = Numero de semana del año (00..53); zonename = Nombre de la"
+    echo    "     zona del local (ART)"
+    echo    "   Utilitarios:"
+    echo    "     jobs = Numero de procesos en segundo plano; exitcode = Codigo de salida del"
+    echo    "     ultimo comando ejecutado; exitface = Una carita que cambia dependiendo del"
+    echo    "     codigo de salida; files = Cantidad de archivos en el directorio actual"
+    echo    "     excluyendo tipos de archivos no comunes (symlinks, directorios, etc) y"
+    echo    "     archivos ocultos (que empiezen en .); filesall = Cantidad total de archivos"
+    echo    "     size = Tamaño de los archivos contados igual que en files; sizeall = Tamaño"
+    echo    "     del los archivos contados igual que en filesall; mail = Cantidad de correo"
+    echo    "     recibido; ignorecp = Se puede realizar copiar y pegar con el mouse la linea"
+    echo    "     entera, incluyendo el prompt, y este sera ignorado"
+    echo    "   Otros:"
+    echo    "     bell = Campana; newline = Nueva linea; creturn = Retorno de carro"
+    echo    "     sign = Un # para root y un $ para los demas seguido de un espacio"
+    echo -e "     º = Un espacio\n"
+    echo    " -s, --save [NAME]          :  Guarda el prompt actual en la lista de prompts"
+    echo    "                               conocidos, con el nombre [NAME]"
+    echo    " -b, --bashrc               :  Hace que el prompt actual sea el prompt por"
+    echo    "                               defecto. (El que se obtiene al loguearse)"
+    echo -e " -d, --delete [NAME]        :  Borra a [NAME] de la lista de prompts\n"
+    echo    "Para saber mas refierase al manual, man $scrname ó info $scrname"
     return 0 # return sale de la funcion y devuelve un exitcode al parent
     ;;
   -v | --version) # Imprime la version y sale
@@ -51,11 +221,11 @@ case $1 in
       return 2
     else
       sed -n '/^º/p' $savefile | \
-      awk -F "º" 'BEGIN {print "Lista de prompts almacenados actualmente\n\n \
-      \tNumero\t\tNombre\t\t\t\tVista Previa\n \
-      \t======\t\t======\t\t\t\t============\n "}\
+      awk -F "º" 'BEGIN {print "Lista de prompts almacenados actualmente\n\n"\
+      "Numero\tNombre\t\t\tVista Previa\n"\
+      "======\t======\t\t\t============\n"}\
       { num = num + 1 }\
-      {print "\t"num"\t\t"$2"\t\t\t\t"$4"\n"}'
+      {print num"\t"$2"\t\t\t"$4"\n"}' | sed 's/\\n/\n\t\t\t\t/g'
       return 0
     fi
     ;;
@@ -74,7 +244,7 @@ case $1 in
         # awk -F º = awk -Fº = awk -F "º" = awk 'BEGIN {FS="º"}'
         # sed -n '/^º/p' saca todos los comentarios y basuras del archivo
         P="$(sed -n '/^º/p' $savefile | awk -Fº '{num = num+1}{print num,$3}' \
-        | grep "$pname " | cut -d " " -f 2-)" # el espacio de "$pname " es vital para encontrar
+        | grep -m 1 "$pname " | cut -d " " -f 2-)" # el espacio de "$pname " es vital para encontrar
                                               # pname y ademas encontrarlo exactamente
       else  # El tipo ingreso un nombre de prompt
         P="$(sed -n '/^º/p' $savefile | awk -Fº '{print $2"º"$3}' \
@@ -93,8 +263,8 @@ case $1 in
   -m | --make) # Crea un nuevo prompt
     if (( $# == 1 )); then
       echo -e "\033[0;33mUso incorrecto. Faltan argumentos\033[0m\n"
-      echo "Uso de $scrname con la opcion -m:"
-      echo "$scrname -m CONSTRUCTORES"
+      echo "Uso de $scrname con la opcion -m, --make:"
+      echo "$scrname -m,--make [CONSTRUCTORES]"
       echo "El constructor del prompt no reconoce los espacios, por lo que si desea un"
       echo "espacio debera usar el caracter "º", este sera reemplazado por un espacio"
       echo "en el prompt resultante. Por lo tanto el caracter "º" no podra ser usado "
@@ -121,7 +291,7 @@ case $1 in
         case $aux in                         # Y se la asigna a aux
           # Colores!!!
 
-          # Foreground                                        Background
+          # Foreground                             # Background
           black)      P="$P""$base""30m\]" ;;      bblack)     P="$P""$base""40m\]" ;;
           red)        P="$P""$base""31m\]" ;;      bred)       P="$P""$base""41m\]" ;;
           green)      P="$P""$base""32m\]" ;;      bgreen)     P="$P""$base""42m\]" ;;
@@ -129,7 +299,7 @@ case $1 in
           blue)       P="$P""$base""34m\]" ;;      bblue)      P="$P""$base""44m\]" ;;
           purple)     P="$P""$base""35m\]" ;;      bpurple)    P="$P""$base""45m\]" ;;
           cyan)       P="$P""$base""36m\]" ;;      bcyan)      P="$P""$base""46m\]" ;;
-          lightgray)  P="$P""$base""37m\]" ;;      blightgray) P="$P""$base""47m\]" ;;
+          gray)  P="$P""$base""37m\]" ;;           bgray) P="$P""$base""47m\]" ;;
 
           # Efectos de texto !!! :-o
           normal)     P="$P""$base""0m\]" ;;       bold)       P="$P""$base""1m\]" ;;
@@ -138,26 +308,39 @@ case $1 in
 
           # Chucherias!!!
 
-          bell)     P="$P\a" ;;
-          host)     P="$P\h" ;;
-          hostfull) P="$P\H" ;;
-          jobs)     P="$P\j" ;;
-          terminal) P="$P\l" ;;
-          newline)  P="$P\n" ;;
-          creturn)  P="$P\r" ;;
-          shell)    P="$P\s" ;;
-          user)     P="$P\u" ;;
-          version)  P="$P\v" ;;
-          realese)  P="$P\V" ;;
-          wdir)     P="$P\w" ;;
-          Wdir)     P="$P\W" ;;
-          hisnum)   P="$P\!" ;;
-          cmdnum)   P="$P\#" ;;
-          exitcode) P="$P\$?" ;;
-          sign)     P="$P\$ " ;;
-          date)     P="$P\$(date +%D)" ;;
-          "(")      P="$P""(" ;;
-          ")")      P="$P"")" ;;
+          bell)       P="$P\a" ;;   host)       P="$P\h" ;;  hostfull)   P="$P\H" ;;
+          jobs)       P="$P\j" ;;   terminal)   P="$P\l" ;;  newline)    P="$P\n" ;;
+          creturn)    P="$P\r" ;;   shell)      P="$P\s" ;;  user)       P="$P\u" ;;
+          version)    P="$P\v" ;;   release)    P="$P\V" ;;  wdir)       P="$P\w" ;;
+          Wdir)       P="$P\W" ;;   hisnum)     P="$P\!" ;;  cmdnum)     P="$P\#" ;;
+          exitcode)   P="$P\$?" ;;  sign)       P="$P\$ " ;;
+          files)      P="$P\$(ffiles)" ;; filesall)  P="$P\$(ffilesall)" ;;
+          size)       P="$P\$(A=\" \"\$?; countbytes)";; sizeall) P="$P\$(A=\"A\"\$?; countbytes)";;
+          uptime)     P="$P\$(fuptime)" ;;  users) P="$P\$(fusers)" ;;
+          tdir)       P="$P\$(truncdir)" ;;     battery) P="$P\$(batterystat)"  ;;
+          ignorecp)   P=": $P" ;;
+          mail)       P="$P\$(fmail)" ;;
+          exitface)   P="$P\$(funnyface)" ;;
+
+          # Fecha y hora:
+
+          year)       P="$P\$(A=Y\$?; crazydate)" ;;     year99)      P="$P\$(A=y\$?; crazydate)" ;;
+          month)      P="$P\$(A=m\$?; crazydate)" ;;     monthnames)  P="$P\$(A=b\$?; crazydate)" ;;
+                                                         monthnamef)  P="$P\$(A=B\$?; crazydate)" ;;
+          day)        P="$P\$(A=d\$?; crazydate)" ;;     daynames)    P="$P\$(A=a\$?; crazydate)" ;;
+          dayofweek)  P="$P\$(A=w\$?; crazydate)" ;;     daynamef)    P="$P\$(A=A\$?; crazydate)" ;;
+          dayofyear)  P="$P\$(A=j\$?; crazydate)" ;;
+          datel)      P="$P\$(A=x\$?; crazydate)" ;;
+          time24l)    P="$P\$(A=X\$?; crazydate)" ;;     time12l)     P="$P\$(A=r\$?; crazydate)" ;;
+          hour24)     P="$P\$(A=H\$?; crazydate)" ;;     hour12)      P="$P\$(A=I\$?; crazydate)" ;;
+          ampm)       P="$P\$(A=P\$?; crazydate)" ;;
+          minutes)    P="$P\$(A=M\$?; crazydate)" ;;
+          seconds)    P="$P\$(A=S\$?; crazydate)" ;;     nanosecs)    P="$P\$(A=N\$?; crazydate)" ;;
+          weekofyear) P="$P\$(A=U\$?; crazydate)" ;;
+          zonename)   P="$P\$(A=Z\$?; crazydate)" ;;
+
+          # Caracteres:
+
           "º" )     P="$P " ;;
           *)        P="$P""$aux" ;;
         esac
@@ -165,6 +348,7 @@ case $1 in
       done
       shift
     done
+    if [[ -z  $(echo $P | sed '/^: /d')  ]]; then P="$P ; "; fi # Para el ignorecp
     export PS1="$(echo "$P" | sed 's/º//g')"
     echo -e "\033[0;32mPrompt creado!\033[0m"
     return 0
@@ -179,30 +363,34 @@ case $1 in
       pname="$pname ""$1"
       shift
     done
-   aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux; aux="$pname"
-  if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 )) || ((i != 0)); then
-    while [ "$pname" == "$aux" ] || ((i != 0)) || ([ -f "$savefile" ] && \
-    (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 ))); do
-     local trap 'echo -e "\033[0;31m\b\b  \nEl propmt no ha sido guardado porque se recibio una señal de terminar\033[0m\n"; return 3 ' SIGINT SIGTERM
+   aux=$(echo $pname | cut -d " " -f 1); declare -i i=$aux; aux="$pname"; P=""
+  if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -w "$aux" | wc -l) >= 1 )) || ((i != 0)); then
+    while [[ ${pname} == ${aux} ]] || ((i != 0)) || (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -w "$aux" | wc -l) >= 1 )); do
+     trap 'echo -e "\033[0;31m\b\b  \n\nEl prompt no ha sido guardado porque se recibio una señal de terminar\033[0m\nPresione ENTER para continuar"; trap SIGINT; trap SIGTERM; P=exit' SIGINT SIGTERM
+     # trap SIGINT y trap SIGTERM  solos, limpian los comandos a ejecutar cuando se reciben estas
+     # señales, es decir todo vuelve a la normalidad
      echo
-     if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -m 1 "$aux" | wc -l) >= 1 )); then
+     if [ -f "$savefile" ] && (( $( awk 'BEGIN {FS="º"} {print $2}' "$savefile" | grep -w "$aux" | wc -l) >= 1 )); then
        echo -e "\033[0;31mYa existe un prompt con el nombre $aux\033[0m"
      fi
      if ((i != 0)); then echo -e "\033[0;31mNo esta permitido que el nombre sea un numero\033[0m";fi
      echo -n "Por favor ingrese un nombre distinto (CTRL-C para cancelar): "
      read aux
+     if [[ ${P} == "exit" ]]; then trap SIGINT; trap SIGTERM; return 3; fi
      declare -i i=$(echo $aux | cut -d " " -f 1)
     done
+    if [[ "$P" == "exit" ]]; then return 3; fi
    fi
     [[ -f "$savefile" ]] || install -m u+rw-x,g-rwx,o-rwx -T /dev/null "$savefile"
-    echo "º""$aux""º""$PS1""º""$(echo -e "$PS1" | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\w/~\/ejemplo/g' -e 's/\\W/ejemplo/g' -e 's/\\!/1024/g' -e 's/\\#/25/g' -e 's/\$?/0/g')" >> "$savefile"
+    echo "º""$aux""º""$PS1""º""$(echo -e "$(echo "$PS1" | sed 's/\\n/\\\\n/g')" | sed -e 's/\\\[//g' -e 's/\\]//g' -e 's/\\l/tty1/g' -e 's/\\u/user/g' -e 's/\\h/host/g' -e 's/\\H/host\.org/g' -e 's/\\w/~\/ejemplo/g' -e 's/\\W/ejemplo/g' -e 's/\\!/1024/g' -e 's/\\#/25/g' -e 's/\$?/0/g' -e 's/\\a//g' -e 's/\\j/2/g' -e 's/\\s/-bash/g' -e 's/\\v/3.2/g' -e 's/\\V/3.2.17/g' -e 's/\$(ffiles)/18/g' -e 's/\$(ffilesall)/20/g' -e 's/\$(A=" "\$?; countbytes)/10,20 Mb/g' -e 's/\$(A="A"\$?; countbytes)/15,20 Mb/g' -e "s/\$(fuptime)/2:30/g" -e "s/\$(fusers)/4/g" -e 's/\$(truncdir)/\.\.\.muchos\/directorios/g' -e 's/\$(batterystat)/^80/g' -e "s/\$(fmail)/12/g" -e "s/\$(funnyface)/:-)/g" -e 's/\$(A=a0; crazydate)/vie/g' -e 's/\$(A=A0; crazydate)/viernes/g' -e 's/\$(A=b0; crazydate)/feb/g' -e 's/\$(A=B0; crazydate)/febrero/g' -e 's/\$(A=d0; crazydate)/13/g' -e 's/\$(A=H0; crazydate)/20/g' -e 's/\$(A=I0; crazydate)/20/g' -e 's/\$(A=j0; crazydate)/213/g' -e 's/\$(A=m0; crazydate)/02/g' -e 's/\$(A=M0; crazydate)/11/g' -e 's/\$(A=N0; crazydate)/3245196870/g' -e 's/\$(A=P0; crazydate)/pm/g' -e 's/\$(A=r0; crazydate)/08:11:32/g' -e 's/\$(A=S0; crazydate)/32/g' -e 's/\$(A=U0; crazydate)/32/g' -e 's/\$(A=w0; crazydate)/6/g' -e 's/\$(A=x0 crazydate)/01\/02\/09/g' -e 's/\$(A=X0; crazydate)/20:11:32/g' -e 's/\$(A=y0; crazydate)/09/g' -e 's/\$(A=Y0; crazydate)/2009/g' -e 's/\$(A=Z0; crazydate)/ART/g')" >> "$savefile"
     echo -e "\033[0;32mEl prompt actual se ha guardado satisfactoriamente en $savefile\033[0m"
     return 0
     ;;
   -b | --bashrc) # Hacer que el prompt actual sea el prompt por defecto
     if [ ! -f "$rcfile" ]; then install -m u+rw-x,g-rwx,o-rwx -T /dev/null "$rcfile"; fi
     if [ -n "$(grep PS1 "$rcfile")" ]; then sed -i '/PS1/d' "$rcfile"; fi
-    aux="$(echo "$PS1" | sed 's/\$?/\\\$?/g')"
+    aux="$(echo "$PS1" | sed -e 's/\$?/\\\$?/g' -e 's/\$(/\\\$(/g')"
+# -e "s/\\\$(if (( \\\$? == 0 )); then echo -n ':-)'; else echo -n ':-('; fi)/\$(if (( \$? == 0 )); then echo -n ':-)' else echo -n ':-('; fi)/g")"
     echo "export PS1=\"$aux\"" >> "$rcfile"
     echo -e "\033[0;32mEl prompt se ha exportado a $rcfile\033[0m"
     echo "En el proximo login que haga, este sera su prompt por defecto"
@@ -226,7 +414,7 @@ case $1 in
           # NF = number of fields => $NF imprime el ultimo
         else  # El tipo ingreso un nombre de prompt
           P="$(awk '{num = num+1}{print $0,num}' $savefile | sed -n '/^º/p' | \
-          grep -m 1 "º$pnameº" | awk -F " " '{print $NF}')" # grep -m 1 stopts at 1st match
+          grep -m 1 "º${pname}º" | awk -F " " '{print $NF}')" # grep -m 1 stopts at 1st match
         fi
         if [ -n "$P" ]; then
           sed -i "$P"d $savefile
